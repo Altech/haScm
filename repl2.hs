@@ -34,9 +34,7 @@ parseAtom = do
     _    -> Atom atom
 
 parseNumber :: Parsec String u LispVal
-parseNumber = do
-  numberStr <- many1 digit
-  return $ Number $ read numberStr
+parseNumber = many1 digit >>= \s -> (return $ (Number . read) s)
 
 parseExpr :: Parsec String u LispVal
 parseExpr = parseAtom <|> parseString <|> parseNumber
