@@ -19,9 +19,9 @@ spaces = skipMany1 space
 parseString :: Parsec String u LispVal
 parseString = do
   char '"'
-  x <- many (noneOf "\"")
+  str <- many $ (string "\\\"" >>= (\_ -> return '"')) <|> noneOf "\""
   char '"'
-  return $ String x
+  return $ String str
 
 parseAtom :: Parsec String u LispVal
 parseAtom = do
@@ -34,7 +34,7 @@ parseAtom = do
     _    -> Atom atom
 
 parseNumber :: Parsec String u LispVal
-parseNumber = many1 digit >>= \s -> (return $ read s) >>= \n -> (return $ Number n)
+parseNumber = liftM (Number . read) $ many1 digit
 
 parseExpr :: Parsec String u LispVal
 parseExpr = parseAtom <|> parseString <|> parseNumber
