@@ -16,10 +16,23 @@ symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 spaces :: Parsec String u ()
 spaces = skipMany1 space
 
+
+escapeCharacters :: Parsec String u Char
+escapeCharacters = foldr1 (<|>) parsers
+  where
+    charMap = [("\\\\",'\\'),
+               ("\\\"",'"'),
+               ("\\n",'\n'),
+               ("\\t",'\t'),
+               ("\\r",'\r'),
+               ("\\0",'\0')]
+    parsers = map (\(str,chr) -> (try (string str >>= \_ -> return chr))) charMap
+
 parseString :: Parsec String u LispVal
 parseString = do
   char '"'
-  str <- many $ (string "\\\"" >>= (\_ -> return '"')) <|> noneOf "\""
+  str <- many $ escapeCharacters <|> noneOf "\""
+  -- str <- many $ escapeCharacters -- <|> noneOf "\""
   char '"'
   return $ String str
 
