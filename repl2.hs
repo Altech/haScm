@@ -4,6 +4,7 @@ import Text.Parsec hiding (spaces)
 import Control.Monad (liftM)
 import Data.Char (chr)
 import qualified Data.Map as Map
+import Numeric (readOct, readHex)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -54,11 +55,44 @@ parseAtom = do
     "#f" -> Bool False
     _    -> Atom atom
 
+parseNumberDecimal :: Parsec String u LispVal
+parseNumberDecimal = (liftM (Number . read) $ many1 digit) <|> do
+  string "#d"
+  chars <- many1 digit
+  return . Number . read $ chars
+
+parseNumberHex :: Parsec String u LispVal
+parseNumberHex = do
+  string "#x"
+  chars <- many1 hexadecimal
+  return . Number . fst . head . readHex $ chars
+  where
+    hexadecimal = digit <|> oneOf "abcdef"
+
+parseNumberOct :: Parsec String u LispVal
+parseNumberOct = do
+  string "#o"
+  chars <- many1 octal
+  return . Number . fst . head . readOct $ chars
+  where
+    octal = oneOf "01234567"
+
+parseNumberBin :: Parsec String u LispVal
+parseNumberBin = do
+  string "#b"
+  chars <- many1 binary
+  return . Number . readBin . reverse $ chars
+  where
+    binary = oneOf "01"
+    readBin str = case str of
+      [] -> 0
+      (b:bs) -> (read [b]) + 2 * (readBin bs)
+
 parseNumber :: Parsec String u LispVal
-parseNumber = liftM (Number . read) $ many1 digit
+parseNumber = (try parseNumberDecimal) <|> (try parseNumberHex) <|> (try parseNumberOct) <|> (try parseNumberBin)
 
 parseExpr :: Parsec String u LispVal
-parseExpr = parseAtom <|> parseString <|> parseNumber
+parseExpr = parseNumber <|> parseAtom <|> parseString
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
