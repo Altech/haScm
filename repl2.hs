@@ -2,6 +2,8 @@ module Main where
 import System.Environment
 import Text.Parsec hiding (spaces)
 import Control.Monad (liftM)
+import Data.Char (chr)
+import qualified Data.Map as Map
 
 data LispVal = Atom String
              | List [LispVal]
@@ -16,23 +18,29 @@ symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 spaces :: Parsec String u ()
 spaces = skipMany1 space
 
+parseStringEscapedUnicode :: Parsec String u Char
+parseStringEscapedUnicode = do
+  char '\\'
+  chars <- count 4 digit
+  return . chr . read $ chars
 
-escapeCharacters :: Parsec String u Char
-escapeCharacters = foldr1 (<|>) parsers
+parseStringEscapedASCII :: Parsec String u Char
+parseStringEscapedASCII = do
+  char '\\'
+  c <- noneOf ""
+  return $ case Map.lookup c controlChars of
+             Just v -> v
+             Nothing -> c
   where
-    charMap = [("\\\\",'\\'),
-               ("\\\"",'"'),
-               ("\\n",'\n'),
-               ("\\t",'\t'),
-               ("\\r",'\r'),
-               ("\\0",'\0')]
-    parsers = map (\(str,chr) -> (try (string str >>= \_ -> return chr))) charMap
+    controlChars = Map.fromList [('n','\n'),
+                                 ('t','\t'),
+                                 ('r','\r'),
+                                 ('0','\0')]
 
 parseString :: Parsec String u LispVal
 parseString = do
   char '"'
-  str <- many $ escapeCharacters <|> noneOf "\""
-  -- str <- many $ escapeCharacters -- <|> noneOf "\""
+  str <- many $ (try parseStringEscapedUnicode) <|> (try parseStringEscapedASCII) <|> noneOf "\""
   char '"'
   return $ String str
 
