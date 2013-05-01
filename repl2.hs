@@ -71,8 +71,27 @@ parseNumberBin = liftM (Number . readBin . reverse) $ string "#b" >> many1 binar
 parseNumber :: Parsec String u LispVal
 parseNumber = (try parseNumberDecimal) <|> (try parseNumberHex) <|> (try parseNumberOct) <|> (try parseNumberBin)
 
+parseList :: Parsec String u LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList :: Parsec String u LispVal
+parseDottedList = do
+  hd <- endBy parseExpr spaces
+  tl <- char '.' >> spaces >> parseExpr
+  return $ DottedList hd tl
+
+parseQuoted :: Parsec String u LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote",x]
+
 parseExpr :: Parsec String u LispVal
-parseExpr = parseNumber <|> parseAtom <|> parseString
+parseExpr = parseNumber <|> parseAtom <|> parseString <|> parseQuoted <|> do
+  char '('
+  x <- try parseList <|> parseDottedList
+  char ')'
+  return x
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
