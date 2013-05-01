@@ -20,23 +20,18 @@ spaces :: Parsec String u ()
 spaces = skipMany1 space
 
 parseStringEscapedUnicode :: Parsec String u Char
-parseStringEscapedUnicode = do
-  char '\\'
-  chars <- count 4 digit
-  return . chr . read $ chars
+parseStringEscapedUnicode = liftM (chr . read) $ char '\\' >> count 4 digit
 
 parseStringEscapedASCII :: Parsec String u Char
-parseStringEscapedASCII = do
-  char '\\'
-  c <- noneOf ""
-  return $ case Map.lookup c controlChars of
-             Just v -> v
-             Nothing -> c
+parseStringEscapedASCII = liftM convert $ char '\\' >> noneOf ""
   where
     controlChars = Map.fromList [('n','\n'),
                                  ('t','\t'),
                                  ('r','\r'),
                                  ('0','\0')]
+    convert c = case Map.lookup c controlChars of
+      Just v -> v
+      Nothing -> c
 
 parseString :: Parsec String u LispVal
 parseString = do
@@ -56,37 +51,22 @@ parseAtom = do
     _    -> Atom atom
 
 parseNumberDecimal :: Parsec String u LispVal
-parseNumberDecimal = (liftM (Number . read) $ many1 digit) <|> do
-  string "#d"
-  chars <- many1 digit
-  return . Number . read $ chars
+parseNumberDecimal = liftM (Number . read) $ (many1 digit) <|> (string "#d" >> many1 digit)
 
 parseNumberHex :: Parsec String u LispVal
-parseNumberHex = do
-  string "#x"
-  chars <- many1 hexadecimal
-  return . Number . fst . head . readHex $ chars
-  where
-    hexadecimal = digit <|> oneOf "abcdef"
+parseNumberHex = liftM (Number . fst . head . readHex) $ string "#x" >> many1 hexadecimal
+  where hexadecimal = digit <|> oneOf "abcdef"
 
 parseNumberOct :: Parsec String u LispVal
-parseNumberOct = do
-  string "#o"
-  chars <- many1 octal
-  return . Number . fst . head . readOct $ chars
-  where
-    octal = oneOf "01234567"
+parseNumberOct = liftM (Number . fst . head . readOct) $ string "#o" >> many1 octal
+  where octal = oneOf "01234567"
 
 parseNumberBin :: Parsec String u LispVal
-parseNumberBin = do
-  string "#b"
-  chars <- many1 binary
-  return . Number . readBin . reverse $ chars
-  where
-    binary = oneOf "01"
-    readBin str = case str of
-      [] -> 0
-      (b:bs) -> (read [b]) + 2 * (readBin bs)
+parseNumberBin = liftM (Number . readBin . reverse) $ string "#b" >> many1 binary
+  where binary = oneOf "01"
+        readBin str = case str of
+          [] -> 0
+          (b:bs) -> read [b] + 2 * readBin bs
 
 parseNumber :: Parsec String u LispVal
 parseNumber = (try parseNumberDecimal) <|> (try parseNumberHex) <|> (try parseNumberOct) <|> (try parseNumberBin)
