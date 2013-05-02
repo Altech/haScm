@@ -132,7 +132,12 @@ primitives = [("+", numericBinop (+)),
               ("/", numericBinop div),
               ("mod", numericBinop mod),
               ("quotient", numericBinop quot),
-              ("remainder", numericBinop rem)]
+              ("remainder", numericBinop rem),
+              ("number?", \v -> case head v of Number _ -> Bool True; _ -> Bool False),
+              ("list?", \v -> case head v of List _ -> Bool True; _ -> Bool False),
+              ("symbol?", \v -> case head v of Atom _ -> Bool True; _ -> Bool False),
+              ("boolean?", \v -> case head v of Number _ -> Bool True; _ -> Bool False),
+              ("string?", \v -> case head v of Number _ -> Bool True; _ -> Bool False)]
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
 numericBinop op params = Number $ foldl1 op $ map unpackNum params
@@ -145,7 +150,8 @@ unpackNum (String n) = let parsed = reads n in
   else fst $ parsed !! 0
 unpackNum (List [n]) = unpackNum n
 unpackNum _ = 0
-                     
+
+
 
 main :: IO ()
 main = getArgs >>= print . eval . readExpr . head
