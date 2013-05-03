@@ -151,7 +151,10 @@ primitives = [("+", numericBinop (+)),
               ("string>?", strBoolBinop (>)),
               ("string<?", strBoolBinop (<)),
               ("string<=?", strBoolBinop (<=)),
-              ("string>=?", strBoolBinop (>=))]
+              ("string>=?", strBoolBinop (>=)),
+              ("car", car),
+              ("cdr", cdr),
+              ("cons", cons)]
 
 boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBinop unpacker op args = if length args /= 2
@@ -191,6 +194,25 @@ unpackBool :: LispVal -> ThrowsError Bool
 unpackBool (Bool b) = return b
 unpackBool notBool  = throwError $ TypeMismatch "boolean" notBool
 
+car :: [LispVal] -> ThrowsError LispVal
+car [List (x:xs)] = return x
+car [DottedList (x:xs) _tail] = return $ x
+car [badArg] = throwError $ TypeMismatch "pair" badArg
+car badArgList = throwError $ NumArgs 1 badArgList
+
+cdr :: [LispVal] -> ThrowsError LispVal
+cdr [List (x:xs)] = return $ List xs
+cdr [DottedList [x] _tail] = return _tail
+cdr [DottedList (x:xs) _tail] = return $ DottedList xs _tail
+cdr [badArg] = throwError $ TypeMismatch "pair" badArg
+cdr badArgList = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons [x, List []] = return $ List [x]
+cons [x, List xs] = return $ List (x:xs)
+cons [x, DottedList xs xlast] = return $ DottedList (x:xs) xlast
+cons [x1, x2] = return $ DottedList [x1] x2
+cons badArgList = throwError $ NumArgs 1 badArgList
 
 -- Error
 data LispError = NumArgs Integer [LispVal]
