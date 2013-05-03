@@ -140,6 +140,7 @@ primitives = [("+", numericBinop (+)),
               ("symbol?", \v -> return $ case head v of Atom _ -> Bool True; _ -> Bool False),
               ("boolean?", \v -> return $ case head v of Number _ -> Bool True; _ -> Bool False),
               ("string?", \v -> return $ case head v of Number _ -> Bool True; _ -> Bool False),
+              ("eq?", eq),
               ("=", numBoolBinop (==)),
               ("<", numBoolBinop (<)),
               (">", numBoolBinop (>)),
@@ -213,6 +214,19 @@ cons [x, List xs] = return $ List (x:xs)
 cons [x, DottedList xs xlast] = return $ DottedList (x:xs) xlast
 cons [x1, x2] = return $ DottedList [x1] x2
 cons badArgList = throwError $ NumArgs 1 badArgList
+
+eq :: [LispVal] -> ThrowsError LispVal
+eq [(Bool arg1), (Bool arg2)]     = return $ Bool (arg1 == arg2)
+eq [(Number arg1), (Number arg2)] = return $ Bool (arg1 == arg2)
+eq [(String arg1), (String arg2)] = return $ Bool (arg1 == arg2)
+eq [(Atom arg1), (Atom arg2)]     = return $ Bool (arg1 == arg2)
+eq [(DottedList xs x), (DottedList ys y)] = eq [List (xs ++ [x]) , List (ys ++ [y])]
+eq [(List arg1), (List arg2)] = return $ Bool $ (length arg1 == length arg2) && (all eqPair (zip arg1 arg2))
+  where eqPair (x1,x2) = case eq [x1,x2] of
+          Left err -> False
+          Right (Bool val) -> val
+eq [_, _] = return $ Bool False
+eq badArgList = throwError $ NumArgs 2 badArgList
 
 -- Error
 data LispError = NumArgs Integer [LispVal]
