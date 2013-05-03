@@ -1,5 +1,4 @@
 module Main where
-import Control.Monad (liftM)
 import Control.Monad.Error
 import Data.Char (chr)
 import Numeric (readOct, readHex)
@@ -21,7 +20,7 @@ showVal (Number contents) = show contents
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
-showVal (DottedList hd tl) = "(" ++ unwordsList hd ++ " . " ++ showVal tl ++ ")"
+showVal (DottedList _head _tail) = "(" ++ unwordsList _head ++ " . " ++ showVal _tail ++ ")"
 
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
@@ -93,9 +92,9 @@ parseList = liftM List $ sepBy parseExpr spaces
 
 parseDottedList :: Parsec String u LispVal
 parseDottedList = do
-  hd <- endBy parseExpr spaces
-  tl <- char '.' >> spaces >> parseExpr
-  return $ DottedList hd tl
+  _head <- endBy parseExpr spaces
+  _tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList _head _tail
 
 parseQuoted :: Parsec String u LispVal
 parseQuoted = do
@@ -116,8 +115,8 @@ eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _)   = return val
 eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", pred, conseq, alt]) = do 
-  result <- eval pred
+eval (List [Atom "if", _pred, conseq, alt]) = do 
+  result <- eval _pred
   case result of
     Bool True  -> eval conseq
     Bool False -> eval alt
@@ -208,7 +207,7 @@ showError (BadSpecialFrom message form) = message ++ ":" ++ show form
 showError (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ ", found " ++ show found
 showError (Parser parseErr) = "Parse error at " ++ show parseErr
-showError anything = show anything
+showError (NotFunction message found) = message ++ "; found " ++ found
 
 instance Show LispError where show = showError
 instance Error LispError where 
