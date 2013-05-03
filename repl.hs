@@ -117,6 +117,12 @@ eval val@(Number _) = return val
 eval val@(Bool _)   = return val
 eval (List [Atom "quote", val]) = return val
 eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval (List [Atom "if", pred, conseq, alt]) = do 
+  result <- eval pred
+  case result of
+    Bool True  -> eval conseq
+    Bool False -> eval alt
+    notBool    -> throwError $ TypeMismatch "boolean" notBool
 eval badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
@@ -202,6 +208,7 @@ showError (BadSpecialFrom message form) = message ++ ":" ++ show form
 showError (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ ", found " ++ show found
 showError (Parser parseErr) = "Parse error at " ++ show parseErr
+showError anything = show anything
 
 instance Show LispError where show = showError
 instance Error LispError where 
