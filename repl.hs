@@ -7,6 +7,7 @@ import Numeric (readOct, readHex)
 import System.Environment
 import System.IO
 import Text.Parsec hiding (spaces)
+import System.Console.Readline
 
 data LispVal = Atom String
              | List [LispVal]
@@ -396,8 +397,8 @@ readExprList = readOrThrow (endBy parseExpr spaces)
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
 
-readPrompt :: String -> IO String
-readPrompt prompt = flushStr prompt >> getLine
+readPrompt :: String -> IO (Maybe String)
+readPrompt prompt = readline prompt
 
 evalString :: Env -> String -> IO String
 evalString env expr = runIOThrows $ liftM show$ liftThrows (readExpr expr) >>= eval env 
@@ -405,12 +406,16 @@ evalString env expr = runIOThrows $ liftM show$ liftThrows (readExpr expr) >>= e
 evalAndPrint :: Env -> String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn
 
-until_ :: Monad m => (t -> Bool) -> m t -> (t -> m a) -> m ()
-until_ _pred prompt action = do 
+until_ prompt action = do 
   result <- prompt
-  if _pred result
-    then return ()
-    else action result >> until_ _pred prompt action
+  case result of 
+    Nothing -> putChar '\n' >> return ()
+    Just "exit" -> return ()
+    Just "quit" -> return ()
+    Just code -> do 
+      addHistory code
+      action code
+      until_ prompt action
 
 runOne :: [String] -> IO ()
 runOne args = do
@@ -418,7 +423,8 @@ runOne args = do
   (runIOThrows $ liftM show $ eval env (List [Atom "load", String (args !! 0)])) >>= hPutStrLn stderr
 
 runRepl :: IO ()
-runRepl = primitiveBindings >>= until_ (== "quit") (readPrompt "Scheme>> ") . evalAndPrint
+runRepl = primitiveBindings >>= until_ (readPrompt "λ> ") . evalAndPrint
+
 
 -- default bindings
 primitiveBindings :: IO Env
