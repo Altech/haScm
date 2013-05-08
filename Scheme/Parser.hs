@@ -1,52 +1,14 @@
-module Scheme.Parser where
+module Scheme.Parser (
+    parseDatum
+  , parse
+  ) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (liftM)
-import Data.List (insert)
 import Text.Trifecta hiding (spaces)
 import Text.Trifecta.Delta (Delta(Lines))
 
-data LispVal = Symbol String
-             | Character Char
-             | List [LispVal] -- for performance
-             | Cons LispVal LispVal
-             | Number Integer
-             | String String
-             | Bool Bool
-             -- | Port Handle
-             -- | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 
-             -- | IOFunc ([LispVal] -> IOThrowsError LispVal)
-             | Func {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
-
-type Env = String -- IORef [(String, IORef LispVal)]
-
--- type ThrowsError = Either LispError
--- type IOThrowsError = ErrorT LispError IO
-
--- Show
-showVal :: LispVal -> String
-showVal (String contents) = "\"" ++ contents ++ "\""
-showVal (Character contents) = "#\\" ++ case contents of ' ' -> "space"; '\n' -> "newline"; c -> [c]
-showVal (Symbol name) = name
-showVal (Number contents) = show contents
-showVal (Bool True) = "#t"
-showVal (Bool False) = "#f"
--- showVal (Port _) = "<IO port>"
-showVal (List contents) = "(" ++ unwordsList contents ++ ")"
--- showVal (DottedList _head _tail) = "(" ++ unwordsList _head ++ " . " ++ showVal _tail ++ ")"
--- showVal (PrimitiveFunc _) = "<primitive>"
--- showVal (IOFunc _) = "<IO primitive>"
-showVal (Func params vararg body closure) = 
-  "(lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ")...)"
-
-instance Show LispVal where show = showVal
-
-unwordsList = unwords . map showVal
-
-
--- Parsers
-
-spaces = do space; skipMany space
+import Scheme.Internal
 
 {- External representations
  ⟨Datum⟩ is what the read procedure (section 6.6.2) successfully parses. Note that any string that parses as an ⟨expression⟩ will also parse as a ⟨datum⟩.
@@ -110,13 +72,15 @@ parseList = parseNormalList <|> parseDottedList <|> parseAbbreviation
           sym <- parseAbbrevPrefix
           datum <- parseDatum
           return $ List [sym, datum]
-        parseAbbrevPrefix = 
-          (string ",@" >> (return $ Symbol "unquote-splicing")) <|>
-          (char '\''   >> (return $ Symbol "quote")) <|>
-          (char '`'    >> (return $ Symbol "quasiquote")) <|>
-          (char ','    >> (return $ Symbol "unquote"))
+        parseAbbrevPrefix = (string ",@" <|> string "'" <|> string "`" <|> string ",") >>= return . Symbol . lookupAbbrev
+        abbrevs = [(",@", "unquote-splicing"),
+                   ("'" , "quote"),
+                   ("`" , "quasiquote"),
+                   ("," , "unquote")]
+        lookupAbbrev abbrev = case lookup abbrev abbrevs of Just sym -> sym
 
+spaces = do space; skipMany space
 
 -- For debug
-parses :: Show a => Parser a -> String -> String
-parses parser str = show $ parseString parser (Lines 0 0 0 0) str
+parse :: Show a => Parser a -> String -> String
+parse parser str = show $ parseString parser (Lines 0 0 0 0) str
