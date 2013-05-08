@@ -18,7 +18,7 @@ cabal-version:       >=1.8
 executable scheme
   main-is:            repl.hs
   -- other-modules:       
-  build-depends:       base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, readline
+  build-depends:       base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, readline, trifecta
 
 Source-Repository head
   Type:                 git
