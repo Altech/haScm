@@ -56,7 +56,7 @@ parseSymbol = do
     specialSubsequent = oneOf "+-.@"
 
 -- Compound Datum
-parseList = parseNormalList <|> parseDottedList <|> parseAbbreviation
+parseList = try parseNormalList <|> parseDottedList <|> parseAbbreviation
   where parseNormalList = do 
           char '(' 
           ls <- sepBy parseDatum spaces
@@ -64,10 +64,13 @@ parseList = parseNormalList <|> parseDottedList <|> parseAbbreviation
           return $ List ls
         parseDottedList = do
           char '(' 
-          ls <- sepBy parseDatum spaces -- [TODO] Check get one at least
-          char '.'
-          las <- parseDatum
-          return $ List $ init ls  ++ [(Cons (last ls) las)]
+          ls <- endBy parseDatum spaces -- [TODO] Check get one at least
+          _last <- char '.' >> spaces >> parseDatum
+          char ')'
+          return $ case _last of 
+            DottedList xs x -> DottedList (ls ++ xs) x
+            List _last  -> List (ls ++ _last)
+            obj -> DottedList ls obj
         parseAbbreviation = do
           sym <- parseAbbrevPrefix
           datum <- parseDatum
@@ -79,7 +82,7 @@ parseList = parseNormalList <|> parseDottedList <|> parseAbbreviation
                    ("," , "unquote")]
         lookupAbbrev abbrev = case lookup abbrev abbrevs of Just sym -> sym
 
-spaces = do space; skipMany space
+spaces = space >> skipMany space
 
 -- For debug
 parse :: Show a => Parser a -> String -> Result a

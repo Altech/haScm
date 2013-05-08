@@ -36,11 +36,26 @@ spec = do
         p "\"test\\n\\tend\"" `shouldBe` (Success $ String "test\n\tend")
         
     describe "<compound datum>" $ do
-      it "symple list: \"(1 2 3)\"" $
-        p "(1 2 3)" `shouldBe` (Success $ List [Number 1, Number 2, Number 3])
+      it "empty list" $ 
+        p "()" `shouldBe` (Success $ List [])
+        
+      it "symple list(syntax-sugar): \"(1 2)\"" $
+        p "(1 2)" `shouldBe` (Success $ List [Number 1, Number 2])
+
+      it "symple list: \"(1 . (2 . ()))\"" $
+        p "(1 . (2 . ()))" `shouldBe` (Success $ List [Number 1, Number 2])
 
       it "nested list: \"(1 (2 3))\"" $
         p "(1 (2 3))" `shouldBe` (Success $ List [Number 1, List [Number 2, Number 3]])
+      
+      it "cons: \"(1 . 2)\"" $
+        p "(1 . 2)" `shouldBe` (Success $ DottedList [Number 1] (Number 2))
+      
+      it "many cons: \"(1 . (2 . 3))\"" $
+        p "(1 . (2 . 3))" `shouldBe` (Success $ DottedList [Number 1, Number 2] (Number 3))
+        
+      it "many cons(syntax-sugar): \"(1 2 . 3)\"" $
+        p "(1 2 . 3)" `shouldBe` (Success $ DottedList [Number 1, Number 2] (Number 3))
       
       it "quoted number: \"'1\"" $ 
         p "'1" `shouldBe` (Success $ List [Symbol "quote", Number 1])
