@@ -19,7 +19,7 @@ executable scheme
   main-is:            repl.hs
   other-modules:      Scheme.Parser
                       Scheme.Internal
-  build-depends:      base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, readline, trifecta
+  build-depends:      base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, readline, trifecta, QuickCheck, hspec
 
 Source-Repository head
   Type:                 git

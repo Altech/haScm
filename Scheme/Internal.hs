@@ -13,7 +13,7 @@ data LispVal = Symbol String
                -- | Port Handle
                -- | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 
                -- | IOFunc ([LispVal] -> IOThrowsError LispVal)
-             | Func {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
+             | Func {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env} deriving (Eq)
 
 
 type Env = String -- IORef [(String, IORef LispVal)]

@@ -82,5 +82,6 @@ parseList = parseNormalList <|> parseDottedList <|> parseAbbreviation
 spaces = do space; skipMany space
 
 -- For debug
-parse :: Show a => Parser a -> String -> String
-parse parser str = show $ parseString parser (Lines 0 0 0 0) str
+parse :: Show a => Parser a -> String -> Result a
+parse parser str = parseString parser (Lines 0 0 0 0) str
+
