@@ -18,8 +18,6 @@ data LispVal = Symbol String
 
 type Env = String -- IORef [(String, IORef LispVal)]
 
--- type ThrowsError = Either LispError
--- type IOThrowsError = ErrorT LispError IO
 
 
 -- Show
