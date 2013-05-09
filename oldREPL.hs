@@ -208,7 +208,7 @@ apply (Func params varargs body closure) args =
   where 
     remainingArgs = drop (length params) args
     num = toInteger . length
-    evalBody env = liftM last $ mapM (eval env) body
+    evalBody env = mapM (eval env) (init body) >> (eval env (last body))
     bindVarArgs arg env = case arg of
       Just argName -> liftIO $ bindVars env [(argName, List remainingArgs)]
       Nothing -> return env
