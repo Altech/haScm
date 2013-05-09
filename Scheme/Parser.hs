@@ -47,13 +47,14 @@ parseCharacter = liftM Character $ do -- [Full]
 
 parseString' = liftM String $ stringLiteral -- [TODO] Check exact syntax.
 
-parseSymbol = do
+parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
   first <- letter <|> specialInitial 
   rest <- many (letter <|> specialInitial <|> digit <|> specialSubsequent)  
-  return $ Symbol(first:rest)
+  return $ first:rest
   where 
     specialInitial = oneOf "!$%&*/:<=>?^_~"
     specialSubsequent = oneOf "+-.@"
+    peculiarIdentifier = string "+" <|> string "-" <|> string "..."
 
 -- Compound Datum
 parseList = try parseNormalList <|> parseDottedList <|> parseAbbreviation
