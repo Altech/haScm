@@ -1,19 +1,32 @@
 module Main where
-import Scheme.Internal
+import Scheme.Evaluator
 import Scheme.Parser
-import System.Environment (getArgs)
-import System.IO (hFlush, stdout)
 import System.Console.Readline (readline, addHistory)
+import System.Directory (getHomeDirectory, doesFileExist)
+import System.Environment (getArgs)
+import System.IO (openFile, IOMode(ReadMode), hGetContents)
+
+import Text.Trifecta (Result(Success, Failure))
 
 -- REPL
-flushStr :: String -> IO ()
-flushStr str = putStr str >> hFlush stdout
+getHistoryFilePath = getHomeDirectory >>= return . (++ "/.hasm_history")
+
+readHistory = do
+  filename   <- getHistoryFilePath
+  fileExists <- doesFileExist filename
+  if fileExists 
+    then openFile filename ReadMode >>= hGetContents >>= addHistories 
+    else return [()]
+  where
+    addHistories contents = mapM addHistory (take 100 (lines contents))
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
 
 evalString :: String -> IO String
-evalString expr = return . show $ parse parseDatum expr
+evalString expr = case parse parseDatum expr of 
+                    Success val -> return . show . eval $ val
+                    Failure doc -> return . show $ doc
 
 evalAndPrint :: String -> IO ()
 evalAndPrint expr = evalString expr >>= putStrLn
@@ -25,6 +38,8 @@ until_ prompt action = do
     Just "exit" -> return ()
     Just "quit" -> return ()
     Just code -> do 
+      file <- getHistoryFilePath
+      appendFile file (code ++ "\n")
       addHistory code
       action code
       until_ prompt action
@@ -33,7 +48,7 @@ runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = until_ (readPrompt "λ> ") evalAndPrint
+runRepl = readHistory >> until_ (readPrompt "λ> ") evalAndPrint
 
 -- main
 main :: IO ()

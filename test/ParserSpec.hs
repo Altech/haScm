@@ -36,7 +36,7 @@ spec = do
         p "\"test\\n\\tend\"" `shouldBe` (Success $ String "test\n\tend")
         
     describe "<compound datum>" $ do
-      it "empty list" $ 
+      it "empty list: \"()\"" $ 
         p "()" `shouldBe` (Success $ List [])
         
       it "symple list(syntax-sugar): \"(1 2)\"" $

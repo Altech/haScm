@@ -3,13 +3,13 @@ module Scheme.Internal (
   , Env
   ) where
 
-data LispVal = Symbol String
+data LispVal = Number Integer
+             | Bool Bool
              | Character Char
+             | String String
+             | Symbol String
              | List [LispVal] -- for performance
              | DottedList [LispVal] LispVal
-             | Number Integer
-             | String String
-             | Bool Bool
                -- | Port Handle
                -- | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 
                -- | IOFunc ([LispVal] -> IOThrowsError LispVal)
@@ -22,12 +22,12 @@ type Env = String -- IORef [(String, IORef LispVal)]
 
 -- Show
 showVal :: LispVal -> String
-showVal (Symbol name) = name
-showVal (Character contents) = "#\\" ++ case contents of ' ' -> "space"; '\n' -> "newline"; c -> [c]
-showVal (String contents) = show contents
 showVal (Number contents) = show contents
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
+showVal (Character contents) = "#\\" ++ case contents of ' ' -> "space"; '\n' -> "newline"; c -> [c]
+showVal (String contents) = show contents
+showVal (Symbol name) = name
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList _init _last) = "(" ++ unwordsList _init ++ " . " ++ show _last ++ ")"
 -- showVal (Port _) = "<IO port>"
