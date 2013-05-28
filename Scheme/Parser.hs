@@ -49,7 +49,7 @@ parseString' = liftM String $ stringLiteral -- [TODO] Check exact syntax.
 
 parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
   first <- letter <|> specialInitial 
-  rest <- many (letter <|> specialInitial <|> digit <|> specialSubsequent)  
+  rest <- many (letter <|> digit <|> specialInitial <|> specialSubsequent)  
   return $ first:rest
   where 
     specialInitial = oneOf "!$%&*/:<=>?^_~"
@@ -58,11 +58,7 @@ parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
 
 -- Compound Datum
 parseList = try parseNormalList <|> parseDottedList <|> parseAbbreviation
-  where parseNormalList = do 
-          char '(' 
-          ls <- sepBy parseDatum spaces
-          char ')'
-          return $ List ls
+  where parseNormalList = liftM List $ parens (sepBy parseDatum spaces)
         parseDottedList = do
           char '(' 
           ls <- endBy parseDatum spaces -- [TODO] Check get one at least
