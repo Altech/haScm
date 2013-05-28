@@ -1,9 +1,13 @@
 module Scheme.Internal (
     LispVal (..)
   , LispError (..)
-  , ThrowsError 
+  , ThrowsError
+  , throwError
+  , catchError
   , Env
   ) where
+
+import Control.Monad.Error
 
 -- Val
 data LispVal = Number Integer
@@ -32,7 +36,9 @@ data LispError = NumArgs Integer [LispVal]
               
 instance Show LispError where show = showError
 instance Eq LispError where _ == _ = False
-
+instance Error LispError where 
+  noMsg = Default "An error has occured"
+  strMsg = Default
 
 
 eqVal :: LispVal -> LispVal -> Bool
@@ -43,6 +49,7 @@ eqVal (Character x) (Character y) = x == y
 eqVal (Symbol    x) (Symbol    y) = x == y
 eqVal (List      xs) (List     ys) = xs == ys
 eqVal (DottedList xs x) (DottedList ys y) = (xs == ys) && (x == y)
+-- eqVal (PrimitiveFunc f) (PrimitiveFunc g) = (f == g)
 eqVal _ _ = False
 
 showVal :: LispVal -> String
@@ -56,7 +63,7 @@ showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList _init _last) = "(" ++ unwordsList _init ++ " . " ++ show _last ++ ")"
 -- showVal (Port _) = "<IO port>"
 -- showVal (DottedList _head _tail) = "(" ++ unwordsList _head ++ " . " ++ showVal _tail ++ ")"
--- showVal (PrimitiveFunc _) = "<primitive>"
+showVal (PrimitiveFunc _) = "<primitive>"
 -- showVal (IOFunc _) = "<IO primitive>"
 -- showVal (Func params vararg body closure) = 
 --   "(lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ")...)"
