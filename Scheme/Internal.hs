@@ -1,13 +1,14 @@
 module Scheme.Internal (
     LispVal (..)
   , LispError (..)
-  , ThrowsError
-  , throwError
-  , catchError
-  , Env
+  , ThrowsError, IOThrowsError
+  , throwError, catchError
+  , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound
   ) where
 
+import Control.Arrow ((>>>))
 import Control.Monad.Error
+import Data.IORef
 
 -- Val
 data LispVal = Number Integer
@@ -81,6 +82,82 @@ unwordsList = unwords . map showVal
 
 
 type ThrowsError = Either LispError
+type IOThrowsError = ErrorT LispError IO
 
-type Env = [(String, LispVal)] -- IORef [(String, IORef LispVal)]
+type Cell  = IORef LispVal
+type Frame = IORef [(String, Cell)]
+type Env   = IORef [Frame]
 
+
+getVar    :: Env -> String ->            IOThrowsError LispVal
+getVar envRef sym = do
+  maybeCell <- liftIO $ lookupVar envRef sym
+  case maybeCell of 
+    Just cell -> liftIO $ readIORef cell >>= return
+    Nothing -> throwError $ UnboundVar "Getting an unbound variable: " sym
+
+setVar    :: Env -> String -> LispVal -> IOThrowsError LispVal
+setVar envRef sym val = do 
+  maybeCell <- liftIO $ lookupVar envRef sym
+  case maybeCell of 
+    Just cell -> liftIO $ writeIORef cell val >> return val
+    Nothing -> throwError $ UnboundVar "Setting an unbound variable: " sym
+    
+defineVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+defineVar envRef sym val = liftIO $ getCurrentFrame envRef >>= defineVarInFrame sym val
+
+defineVarInFrame :: String -> LispVal -> Frame -> IO LispVal
+defineVarInFrame sym val frameRef = do
+  isAlreadlyDefined <- liftIO $ isBoundInFrame frameRef sym
+  if isAlreadlyDefined
+    then do
+      frame <- readIORef frameRef
+      cell <- newCell val
+      writeIORef frameRef ((sym,cell):(filter ((==sym) . fst) frame))
+      return val
+    else do 
+      frame <- readIORef frameRef
+      cell <- newIORef val
+      writeIORef frameRef ((sym,cell):frame)
+      return val
+
+lookupVar :: Env -> String -> IO (Maybe Cell)
+lookupVar envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> return)
+
+newCell  :: LispVal -> IO Cell
+newFrame :: IO Frame
+newEnv   :: IO Env
+nullEnv  :: IO Env
+newCell val = newIORef val
+newFrame = newIORef []
+newEnv = newIORef []
+nullEnv = newEnv >>= addFrame
+
+addFrame :: Env -> IO Env
+addFrame envRef = do
+  env <- readIORef envRef
+  frame <- newFrame
+  writeIORef envRef (frame:env)
+  return envRef
+
+getCurrentFrame :: Env -> IO Frame
+getCurrentFrame envRef = readIORef envRef >>= return . head
+
+
+isBound        :: Env   -> String -> IO Bool
+isBoundInFrame :: Frame -> String -> IO Bool
+isBound envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> maybe False (const True) >>> return)
+isBoundInFrame frameRef sym = readIORef frameRef >>= (lookup sym >>> maybe False (const True) >>> return)
+
+  
+  
+-- runIOThrows :: IOThrowsError a -> IO b
+-- runIOThrows action = runErrorT (trapError action) >>= return . extractValue
+
+-- extractValue :: ThrowsError a -> a
+-- extractValue (Right val) = val
+
+-- trapError :: (Show e, MonadError e m) => m String -> m String
+-- trapError action = catchError action (return . show)
+
+-- bindVars :: Env -> [(String, LispVal)] -> IO Env
