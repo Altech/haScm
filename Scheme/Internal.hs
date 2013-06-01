@@ -156,14 +156,6 @@ isBound envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup 
 isBoundInFrame frameRef sym = readIORef frameRef >>= (lookup sym >>> maybe False (const True) >>> return)
 
   
-  
--- runIOThrows :: IOThrowsError a -> IO b
--- runIOThrows action = runErrorT (trapError action) >>= return . extractValue
 
--- extractValue :: ThrowsError a -> a
--- extractValue (Right val) = val
-
--- trapError :: (Show e, MonadError e m) => m String -> m String
--- trapError action = catchError action (return . show)
 
 -- bindVars :: Env -> [(String, LispVal)] -> IO Env

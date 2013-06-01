@@ -1,8 +1,12 @@
 module Scheme.Evaluator (
-    eval
+    eval,
+    nullEnv,
+    Env,
+    runIOThrows
   ) where
 
 import Scheme.Internal
+import Control.Monad.Error (runErrorT)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- self-evaluating values
@@ -13,20 +17,15 @@ eval _ val@(String _) = return val
 -- environment
 eval env val@(Symbol sym) = getVar env sym
 -- Special Forms
-eval env val@(List ((Symbol name): _)) | isSpecialForm name = evalSpecialForm env val
+eval env val@(List ((Symbol sym): _)) | isSpecialForm sym = evalSpecialForm env val
 eval env (List (function:args)) = do 
   funcVal <- eval env function
   argVals <- mapM (eval env) args
   apply funcVal argVals
-
--- evalSpecialForm :: LispVal -> ThrowsError LispVal
--- evalSpecialForm List [Symbol "set!", Symbol var, exp] = eval exp >>= 
-
+-- apply
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
 
--- Application
--- eval (List (function : args)) = 
 
 --- Special Forms
 specialForms :: [String]
@@ -38,8 +37,6 @@ evalSpecialForm env (List [(Symbol "define"),(Symbol sym),val]) = defineVar env 
 evalSpecialForm env (List [(Symbol "set!"),  (Symbol sym),val]) = setVar    env sym val
 
 
--- env :: Env
--- env = nullEnv -- >>= primitives
 
 primitives :: [(String, LispVal)]
 primitives = [("+", PrimitiveFunc lispPlus)]
@@ -50,3 +47,14 @@ lispPlus list = mapM unpackNum list >>= (return . Number . foldr1 (+))
 unpackNum :: LispVal -> ThrowsError Integer
 unpackNum (Number num) = return num
 unpackNum notNum = throwError $ TypeMismatch "number" notNum
+
+
+
+
+
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = runErrorT (trapError action) >>= return . extractValue
+
+extractValue (Right val) = val
+
+trapError action = catchError action (return . show)

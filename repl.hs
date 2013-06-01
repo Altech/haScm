@@ -6,30 +6,35 @@ import System.Directory (getHomeDirectory, doesFileExist)
 import System.Environment (getArgs)
 import System.IO (openFile, IOMode(ReadMode), hGetContents)
 
+import Control.Monad (liftM)
+import Control.Arrow ((>>>))
+
 import Text.Trifecta (Result(Success, Failure))
 
 -- REPL
+getHistoryFilePath :: IO String
 getHistoryFilePath = getHomeDirectory >>= return . (++ "/.hasm_history")
 
+readHistory :: IO ()
 readHistory = do
   filename   <- getHistoryFilePath
   fileExists <- doesFileExist filename
   if fileExists 
-    then openFile filename ReadMode >>= hGetContents >>= addHistories 
-    else return [()]
+    then openFile filename ReadMode >>= hGetContents >>= addHistories >> return ()
+    else return ()
   where
     addHistories contents = mapM addHistory (take 100 (lines contents))
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
 
-evalString :: String -> IO String
-evalString expr = case parse parseDatum expr of 
-                    Success val -> return . show . eval $ val
+evalString :: Env -> String -> IO String
+evalString env expr = case parse parseDatum expr of 
+                    Success val -> runIOThrows . liftM show . eval env $ val
                     Failure doc -> return . show $ doc
 
-evalAndPrint :: String -> IO ()
-evalAndPrint expr = evalString expr >>= putStrLn
+evalAndPrint :: Env -> String -> IO ()
+evalAndPrint env expr = evalString env expr >>= putStrLn
 
 until_ prompt action = do 
   result <- prompt
@@ -42,13 +47,13 @@ until_ prompt action = do
       appendFile file (code ++ "\n")
       addHistory code
       action code
-      until_ prompt action
+      until_ prompt action 
 
 runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = readHistory >> until_ (readPrompt "λ> ") evalAndPrint
+runRepl = readHistory >> nullEnv >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
 
 -- main
 main :: IO ()

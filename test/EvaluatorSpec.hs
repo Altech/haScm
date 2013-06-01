@@ -18,7 +18,6 @@ shouldBeEvaluatedTo val expect = do
     Right ret -> if ret == expect then return () else assertFailure ("Expected: " ++ show expect ++ "\n" ++ " but got: " ++ show ret)
     Left err  -> assertFailure ("Expected: Right _\n but got: Left err (err: " ++ show err ++ ")")
     
--- shouldThrow :: LispVal -> Expectation
 shouldThrow :: IOThrowsError LispVal -> () -> Expectation
 shouldThrow execution _ = do
   maybeVal <- runErrorT $ execution
