@@ -1,47 +1,45 @@
 module Scheme.Evaluator (
     eval
-  , env
-  , getEnv
   ) where
 
 import Scheme.Internal
 
-eval :: LispVal -> ThrowsError LispVal
+eval :: Env -> LispVal -> IOThrowsError LispVal
 -- self-evaluating values
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
-eval val@(Character _) = return val
-eval val@(String _) = return val
+eval _ val@(Number _) = return val
+eval _ val@(Bool _) = return val
+eval _ val@(Character _) = return val
+eval _ val@(String _) = return val
 -- environment
-eval val@(Symbol sym) = getEnv sym
+eval env val@(Symbol sym) = getVar env sym
 -- Special Forms
-eval val@(List ((Symbol name): _)) | isSpecialForm name = evalSpecialForm val
-eval (List (function:args)) = do 
-  funcVal <- eval function
-  argVals <- mapM eval args
+eval env val@(List ((Symbol name): _)) | isSpecialForm name = evalSpecialForm env val
+eval env (List (function:args)) = do 
+  funcVal <- eval env function
+  argVals <- mapM (eval env) args
   apply funcVal argVals
 
-apply :: LispVal -> [LispVal] -> ThrowsError LispVal
-apply (PrimitiveFunc func) args = func args
+-- evalSpecialForm :: LispVal -> ThrowsError LispVal
+-- evalSpecialForm List [Symbol "set!", Symbol var, exp] = eval exp >>= 
+
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply (PrimitiveFunc func) args = liftThrows $ func args
 
 -- Application
 -- eval (List (function : args)) = 
 
 --- Special Forms
+specialForms :: [String]
+specialForms = ["define","set!"]
 isSpecialForm :: String -> Bool
 isSpecialForm name = name `elem` specialForms
-evalSpecialForm = undefined
+evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
+evalSpecialForm env (List [(Symbol "define"),(Symbol sym),val]) = defineVar env sym val
+evalSpecialForm env (List [(Symbol "set!"),  (Symbol sym),val]) = setVar    env sym val
 
-specialForms :: [String]
-specialForms = []
 
-env :: Env
-env = primitives
-
-getEnv :: String -> ThrowsError LispVal
-getEnv sym = case lookup sym env of
-  Just val -> return val
-  Nothing -> Left $ UnboundVar "Getting an unbound variable: " sym
+-- env :: Env
+-- env = nullEnv -- >>= primitives
 
 primitives :: [(String, LispVal)]
 primitives = [("+", PrimitiveFunc lispPlus)]

@@ -1,7 +1,7 @@
 module Scheme.Internal (
     LispVal (..)
   , LispError (..)
-  , ThrowsError, IOThrowsError
+  , ThrowsError, IOThrowsError, liftThrows
   , throwError, catchError
   , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound
   ) where
@@ -83,6 +83,12 @@ unwordsList = unwords . map showVal
 
 type ThrowsError = Either LispError
 type IOThrowsError = ErrorT LispError IO
+
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows (Left err)  = throwError err
+liftThrows (Right val) = return val
+
+
 
 type Cell  = IORef LispVal
 type Frame = IORef [(String, Cell)]
