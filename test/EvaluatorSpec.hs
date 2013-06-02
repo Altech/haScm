@@ -95,9 +95,9 @@ spec = do
                  "`(1 ,id)"]
           val `shouldBe` expr "(1 1)"
         it "quote a list including an double unquote(should throw)" $ do
-          env <- nullEnv
-          runSample $ evalExpr "(define id 1)" env
-          evalExpr "`(1 ,,id)" env `shouldThrow` ()
+           (nullEnv' >>= evalExprs [
+            "(define id 1)",
+            "`(1 ,,id)"]) `shouldThrow` ()
         it "quote a list twice including an unquote" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define id 1)",

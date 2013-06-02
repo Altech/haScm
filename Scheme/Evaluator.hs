@@ -39,12 +39,22 @@ evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = setVar    env sym
 evalSpecialForm env (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
   where 
-    unquote (List [Symbol "unquote", form]) 1 = eval env form 
-    unquote (List [Symbol "unquote", form]) n | n > 1 = unquote form (n-1) >>= \form -> return (List [Symbol "unquote", form])
+    unquote (List [Symbol "unquote", form]) 1                  = eval env form 
+    unquote (List [Symbol "unquote", form]) n | n > 1          = unquote form (n-1) >>= \form -> return (List [Symbol "unquote", form])
+    unquote (List [Symbol "unquote-splicing", form]) n | n > 1 = unquote form (n-1) >>= \form -> return (List [Symbol "unquote-splicing", form])
     unquote (List [Symbol "quasiquote", form]) n = unquote form (n+1) >>= \form -> return (List [Symbol "quasiquote", form])
-    unquote (List list) n = mapM (\v -> unquote v n) list >>= return . List  --unquoteList list n >>= return . List 
+    unquote (List list) n = unquoteSplicing list n >>= mapM (\v -> unquote v n) >>= return . List  --unquoteList list n >>= return . List 
     unquote simpleDatum n = return simpleDatum
-    
+    unquoteSplicing list n | n > 1 = return list
+    unquoteSplicing (List [Symbol "unquote-splicing", form]:tl) 1 = do 
+      list <- eval env form
+      case list of
+        List ls -> do 
+          tl <- unquoteSplicing tl 1
+          return $ ls ++ tl
+        _ -> throwError $ TypeMismatch "list" list
+    unquoteSplicing (hd:tl) 1 = unquoteSplicing tl 1 >>= \tl -> return $ hd:tl
+    unquoteSplicing [] 1 = return []
 
 
 defaultEnv :: IO Env
