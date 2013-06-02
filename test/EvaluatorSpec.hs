@@ -115,6 +115,13 @@ spec = do
           val `shouldBe`  expr "(1 1 2 3)"
       describe "lambda" $ do 
         it "" pending
+      describe "if" $ do
+        it "if true then 1 else 2" $ do
+          val <- runSample $ nullEnv' >>= evalExpr "(if #t 1 2)"
+          val `shouldBe` expr "1"
+        it "if false then 1 else 2" $ do
+          val <- runSample $ nullEnv' >>= evalExpr "(if #f 1 2)"
+          val `shouldBe` expr "2"
     -- describe "primitive functions" $ do 
     --   describe "+" $ do
     --     -- it "eval + should be an primitive function" $ 

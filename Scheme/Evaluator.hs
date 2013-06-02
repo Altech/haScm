@@ -37,11 +37,11 @@ apply (Func params varargs body closure) args =
     bindVarArgs arg env = case arg of
       Just argName -> liftIO $ bindVars [(argName, List remainingArgs)] env
       Nothing -> return env
-apply x y = throwError (Default $ "invalid application:" ++ show x)
+apply notFunction _ = throwError $ TypeMismatch "function" notFunction
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","set!","quote","quasiquote","lambda"]
+specialForms = ["define","set!","quote","quasiquote","lambda","if"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -65,6 +65,11 @@ evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
     destructList action = (\val -> case val of List ls -> ls) <$> action
 evalSpecialForm env (List (Symbol "lambda" : List params : body))               = makeNormalFunc env params body
 evalSpecialForm env (List (Symbol "lambda" : DottedList params varargs : body)) = makeVarargs varargs env params body
+evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
+  bool <- eval env pred
+  case bool of
+    Bool True  -> eval env conseq
+    Bool False -> eval env alt
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 makeFunc varargs env params body = liftIO $ Func (map show params) varargs body <$> addFrame env
