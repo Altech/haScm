@@ -7,6 +7,8 @@ module Scheme.Evaluator (
 import Scheme.Internal
 import Control.Monad.Error (runErrorT)
 
+import Control.Applicative
+
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- self-evaluating values
 eval _ val@(Number _) = return val
@@ -21,7 +23,7 @@ eval env (List (function:args)) = do
   funcVal <- eval env function
   argVals <- mapM (eval env) args
   apply funcVal argVals
-eval env badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
+eval ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 -- apply
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
@@ -36,26 +38,21 @@ isSpecialForm _ = False
 evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
 evalSpecialForm env (List [Symbol "define",Symbol sym, val]) = defineVar env sym val
 evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = setVar    env sym val
-evalSpecialForm env (List [Symbol "quote", form]) = return form
+evalSpecialForm ___ (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
   where 
-    unquote (List [Symbol "unquote", form]) 1                  = eval env form 
-    unquote (List [Symbol "unquote", form]) n | n > 1          = unquote form (n-1) >>= \form -> return (List [Symbol "unquote", form])
-    unquote (List [Symbol "unquote-splicing", form]) n | n > 1 = unquote form (n-1) >>= \form -> return (List [Symbol "unquote-splicing", form])
-    unquote (List [Symbol "quasiquote", form]) n = unquote form (n+1) >>= \form -> return (List [Symbol "quasiquote", form])
-    unquote (List list) n = unquoteSplicing list n >>= mapM (\v -> unquote v n) >>= return . List  --unquoteList list n >>= return . List 
-    unquote simpleDatum n = return simpleDatum
-    unquoteSplicing list n | n > 1 = return list
-    unquoteSplicing (List [Symbol "unquote-splicing", form]:tl) 1 = do 
-      list <- eval env form
-      case list of
-        List ls -> do 
-          tl <- unquoteSplicing tl 1
-          return $ ls ++ tl
-        _ -> throwError $ TypeMismatch "list" list
-    unquoteSplicing (hd:tl) 1 = unquoteSplicing tl 1 >>= \tl -> return $ hd:tl
-    unquoteSplicing [] 1 = return []
-
+    unquote (List [Symbol "unquote", form'])          1         = eval env form' 
+    unquote (List [Symbol "unquote", form'])          n | n > 1 = (\form'' -> List [Symbol "unquote", form''])          <$> unquote form' (n-1)
+    unquote (List [Symbol "unquote-splicing", form']) n | n > 1 = (\form'' -> List [Symbol "unquote-splicing", form'']) <$> unquote form' (n-1)
+    unquote (List [Symbol "quasiquote", form'])       n         = (\form'' -> List [Symbol "quasiquote", form''])       <$> unquote form' (n+1)
+    unquote (List list) n = unquoteSplicing list n >>= mapM (\v -> unquote v n) >>= return . List
+    unquote simpleDatum _ = return simpleDatum
+    unquoteSplicing list    n | n > 1  = return list
+    unquoteSplicing []      1 = return []
+    unquoteSplicing (hd:tl) 1 = case hd of
+      List [Symbol "unquote-splicing", form'] -> (++) <$> destructList (eval env form') <*> unquoteSplicing tl 1
+      _                                      -> (:)  <$> pure hd                      <*> unquoteSplicing tl 1
+    destructList action = (\val -> case val of List ls -> ls) <$> action
 
 defaultEnv :: IO Env
 defaultEnv = nullEnv >>= bindVars defaultBindings
@@ -80,6 +77,7 @@ unpackNum notNum = throwError $ TypeMismatch "number" notNum
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = runErrorT (trapError action) >>= return . extractValue
 
+extractValue :: ThrowsError String -> String
 extractValue (Right val) = val
 
 trapError action = catchError action (return . show)
