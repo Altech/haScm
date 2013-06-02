@@ -57,8 +57,12 @@ parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
     peculiarIdentifier = string "+" <|> string "-" <|> string "..."
 
 -- Compound Datum
-parseList = try parseNormalList <|> parseDottedList <|> parseAbbreviation
-  where parseNormalList = liftM List $ parens (sepBy parseDatum spaces)
+parseList = try parseNormalList <|> try parseDottedList <|> parseAbbreviation
+  where parseNormalList = liftM List $ do 
+          char '(' 
+          values <- sepBy parseDatum spaces
+          char ')'
+          return values
         parseDottedList = do
           char '(' 
           ls <- endBy parseDatum spaces -- [TODO] Check get one at least
@@ -78,7 +82,7 @@ parseList = try parseNormalList <|> parseDottedList <|> parseAbbreviation
                    ("`" , "quasiquote"),
                    ("," , "unquote")]
         lookupAbbrev abbrev = case lookup abbrev abbrevs of Just sym -> sym
-
+        
 spaces = space >> skipMany space
 
 -- For debug

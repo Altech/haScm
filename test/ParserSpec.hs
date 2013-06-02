@@ -48,6 +48,9 @@ spec = do
       it "nested list: \"(1 (2 3))\"" $
         p "(1 (2 3))" `shouldBe` (Success $ List [Number 1, List [Number 2, Number 3]])
       
+      it "nested list: \"((1 2) 3)\"" $
+        p "((1 2) 3)" `shouldBe` (Success $ List [List [Number 1, Number 2], Number 3])
+      
       it "cons: \"(1 . 2)\"" $
         p "(1 . 2)" `shouldBe` (Success $ DottedList [Number 1] (Number 2))
       
