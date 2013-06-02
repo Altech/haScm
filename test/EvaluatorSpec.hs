@@ -1,6 +1,8 @@
 -- file Spec.hs
 import Scheme.Internal
 import Scheme.Evaluator
+import Scheme.Parser (parse,parseDatum)
+import Text.Trifecta.Result (Result (..))
 import Test.Hspec hiding (shouldThrow)
 import Test.HUnit.Lang (assertFailure)
 import Test.QuickCheck hiding (Result, Success, Failure)
@@ -26,6 +28,19 @@ shouldThrow execution _ = do
     Left err  -> return ()
 
 
+expr :: String -> LispVal
+expr s = case parse parseDatum s of Success exp -> exp
+
+evalExpr :: String -> Env -> IOThrowsError LispVal
+evalExpr str env = eval env (expr str)
+
+evalExprs :: [String] -> Env -> IOThrowsError LispVal
+evalExprs strs env = mapM (\str -> eval env (expr str)) strs >>= return . last
+
+nullEnv' = liftIO nullEnv
+
+runSample action = runErrorT action >>= return . extractValue
+extractValue (Right val) = val
                                      
 spec = do 
   describe "eval" $ do
@@ -45,30 +60,60 @@ spec = do
     describe "identifier" $ do
       describe "<symbol>" $ do 
         it "eval (Symbol \"id\") should throw error" $ do
-          env <- nullEnv
-          eval env sampleId `shouldThrow` () 
+          (nullEnv' >>= evalExpr "id") `shouldThrow` () 
         it "eval (Symbol \"id\") should be evaluated to its content" $ do
-          env <- nullEnv
-          maybeVal <- runErrorT $ do
-            eval env (List [(Symbol "define"), sampleId, sampleVal])
-            eval env sampleId
-          maybeVal `shouldBe` (Right sampleVal)
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "id"]
+          val `shouldBe` expr "1"
     describe "special forms" $ do
       describe "define" $ do
         it "define a symbol as a value" $ do
-          env <- nullEnv
-          maybeVal <- runErrorT $ do 
-            eval env (List [(Symbol "define"), sampleId, sampleVal])
-            eval env sampleId
-          maybeVal `shouldBe` (Right sampleVal)
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "id"]
+          val `shouldBe` expr "1"
       describe "set!" $ do 
         it "change the value of the symbol" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "(set! id 2)",
+                 "id"]
+          val `shouldBe` expr "2"
+      describe "quote" $ do
+        it "quote an symbol" $ do
+          val <- runSample $ nullEnv' >>= evalExpr "'id"
+          val `shouldBe` expr "id"
+      describe "quasiquote" $ do
+        it "quote an symbol" $ do
+          val <- runSample $ nullEnv' >>= evalExpr "`id"
+          val `shouldBe` expr "id"
+      describe "quasiquote / unquote / unquote-splicing" $ do
+        it "quote a list including an unquote" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "`(1 ,id)"]
+          val `shouldBe` expr "(1 1)"
+        it "quote a list including an double unquote(should throw)" $ do
           env <- nullEnv
-          maybeVal <- runErrorT $ do 
-            eval env (List [(Symbol "define"), sampleId, sampleVal1])
-            eval env (List [(Symbol "set!"), sampleId, sampleVal2])
-            eval env sampleId
-          maybeVal `shouldBe` (Right sampleVal2)
+          runSample $ evalExpr "(define id 1)" env
+          evalExpr "`(1 ,,id)" env `shouldThrow` ()
+        it "quote a list twice including an unquote" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "``(1 ,id)"]
+          val `shouldBe` (expr "`(1 ,id)")
+        it "quote a list twice including an double quote" $ do 
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id 1)",
+                 "`(a `(b ,,id))"]
+          val `shouldBe` expr "(a `(b ,1))"
+        it "quote a list including an unquote-splicing" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define id (1 2 3))",
+                 "`(1 ,@id)"]
+          val `shouldBe`  expr "(1 1 2 3)"
+            
     describe "primitive functions" $ do 
       describe "+" $ do
         -- it "eval + should be an primitive function" $ 
@@ -77,8 +122,3 @@ spec = do
           List [Symbol "+", Number 1, Number 1] `shouldBeEvaluatedTo` Number 2
         it "eval (+ 100 25) should be evaluated to 125" $
           List [Symbol "+", Number 100, Number 25] `shouldBeEvaluatedTo` Number 125
-  where
-    sampleId   = Symbol "id"
-    sampleVal  = sampleVal1
-    sampleVal1 = Number 1
-    sampleVal2 = Number 2

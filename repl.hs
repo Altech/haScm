@@ -53,7 +53,7 @@ runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = readHistory >> nullEnv >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
+runRepl = readHistory >> defaultEnv >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
 
 -- main
 main :: IO ()

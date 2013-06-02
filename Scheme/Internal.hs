@@ -3,7 +3,7 @@ module Scheme.Internal (
   , LispError (..)
   , ThrowsError, IOThrowsError, liftThrows
   , throwError, catchError
-  , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound
+  , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars
   ) where
 
 import Control.Arrow ((>>>))
@@ -155,7 +155,8 @@ isBoundInFrame :: Frame -> String -> IO Bool
 isBound envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> maybe False (const True) >>> return)
 isBoundInFrame frameRef sym = readIORef frameRef >>= (lookup sym >>> maybe False (const True) >>> return)
 
-  
-
-
--- bindVars :: Env -> [(String, LispVal)] -> IO Env
+bindVars :: [(String, LispVal)] -> Env -> IO Env
+bindVars bindings envRef = do
+  frame <- getCurrentFrame envRef
+  mapM (\(s,v) -> (defineVarInFrame s v frame)) bindings
+  return envRef  
