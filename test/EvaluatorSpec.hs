@@ -110,15 +110,16 @@ spec = do
           val `shouldBe` expr "(a `(b ,1))"
         it "quote a list including an unquote-splicing" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
-                 "(define id (1 2 3))",
+                 "(define id '(1 2 3))",
                  "`(1 ,@id)"]
           val `shouldBe`  expr "(1 1 2 3)"
-            
-    describe "primitive functions" $ do 
-      describe "+" $ do
-        -- it "eval + should be an primitive function" $ 
-        --   Symbol "+" `shouldBeEvaluatedTo` (case getEnv "+" of Right v -> v)
-        it "eval (+ 1 1) should be evaluated to 2" $
-          List [Symbol "+", Number 1, Number 1] `shouldBeEvaluatedTo` Number 2
-        it "eval (+ 100 25) should be evaluated to 125" $
-          List [Symbol "+", Number 100, Number 25] `shouldBeEvaluatedTo` Number 125
+      describe "lambda" $ do 
+        it "" pending
+    -- describe "primitive functions" $ do 
+    --   describe "+" $ do
+    --     -- it "eval + should be an primitive function" $ 
+    --     --   Symbol "+" `shouldBeEvaluatedTo` (case getEnv "+" of Right v -> v)
+    --     it "eval (+ 1 1) should be evaluated to 2" $
+    --       List [Symbol "+", Number 1, Number 1] `shouldBeEvaluatedTo` Number 2
+    --     it "eval (+ 100 25) should be evaluated to 125" $
+    --       List [Symbol "+", Number 100, Number 25] `shouldBeEvaluatedTo` Number 125
