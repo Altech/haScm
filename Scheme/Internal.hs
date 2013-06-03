@@ -121,7 +121,7 @@ defineVarInFrame sym val frameRef = do
     then do
       frame <- readIORef frameRef
       cell <- newCell val
-      writeIORef frameRef ((sym,cell):(filter ((==sym) . fst) frame))
+      writeIORef frameRef ((sym,cell):(filter (not . (==sym) . fst) frame))
       return val
     else do 
       frame <- readIORef frameRef
