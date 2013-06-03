@@ -4,7 +4,7 @@ import Scheme.Parser
 import System.Console.Readline (readline, addHistory)
 import System.Directory (getHomeDirectory, doesFileExist)
 import System.Environment (getArgs)
-import System.IO (openFile, IOMode(ReadMode), hGetContents)
+import System.IO (openFile, hClose, IOMode(ReadMode), hGetContents)
 
 import Control.Monad (liftM)
 import Control.Arrow ((>>>))
@@ -20,7 +20,11 @@ readHistory = do
   filename   <- getHistoryFilePath
   fileExists <- doesFileExist filename
   if fileExists 
-    then openFile filename ReadMode >>= hGetContents >>= addHistories >> return ()
+    then do 
+      h <- openFile filename ReadMode
+      histories <- hGetContents h
+      addHistories histories
+      hClose h
     else return ()
   where
     addHistories contents = mapM addHistory (take 100 (lines contents))
