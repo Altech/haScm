@@ -5,6 +5,7 @@ module Scheme.Internal (
   , throwError, catchError
   , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars
   , liftIO, runErrorT
+  , showBindings
   ) where
 
 import Control.Arrow ((>>>))
@@ -145,8 +146,7 @@ addFrame :: Env -> IO Env
 addFrame envRef = do
   env <- readIORef envRef
   frame <- newFrame
-  writeIORef envRef (frame:env)
-  return envRef
+  newIORef (frame:env)
 
 getCurrentFrame :: Env -> IO Frame
 getCurrentFrame envRef = readIORef envRef >>= return . head
@@ -162,3 +162,13 @@ bindVars bindings envRef = do
   frame <- getCurrentFrame envRef
   mapM (\(s,v) -> (defineVarInFrame s v frame)) bindings
   return envRef  
+
+showBindings :: Env -> IO String
+showBindings envRef = do 
+  bindings <- readIORef envRef >>= mapM readIORef >>= mapM (mapM (\(sym,cell) -> readIORef cell >>= (\val -> return (Symbol sym,val))))
+  return $ "[\n" ++ showBindings (reverse bindings) ++ "]"
+  where showBindings bindings = case bindings of 
+          (frame:[]) -> showFrame frame ++ "\n"
+          (frame:frames) -> showFrame frame ++ ",\n" ++ showBindings frames
+          [] -> ""
+        showFrame frame = " " ++ show frame

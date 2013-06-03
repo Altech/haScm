@@ -42,7 +42,7 @@ apply notFunction _ = throwError $ TypeMismatch "function" notFunction
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","set!","quote","quasiquote","lambda","if"]
+specialForms = ["define","set!","quote","quasiquote","lambda","if","bindings"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -71,6 +71,7 @@ evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
   case bool of
     Bool True  -> eval env conseq
     Bool False -> eval env alt
+evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= putStrLn >> return (String "")
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 makeFunc varargs env params body = liftIO $ Func (map show params) varargs body <$> addFrame env
