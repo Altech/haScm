@@ -88,7 +88,7 @@ spec = do
         it "quote an symbol" $ do
           val <- runSample $ nullEnv' >>= evalExpr "`id"
           val `shouldBe` expr "id"
-      describe "quasiquote / unquote / unquote-splicing" $ do
+      describe "quasiquote with unquote / unquote-splicing" $ do
         it "quote a list including an unquote" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define id 1)",

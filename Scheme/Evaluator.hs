@@ -5,6 +5,7 @@ module Scheme.Evaluator (
   ) where
 
 import Scheme.Internal
+import Scheme.Evaluator.Primitives
 
 import Control.Applicative
 
@@ -47,7 +48,7 @@ isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
 evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
 evalSpecialForm env (List [Symbol "define",Symbol sym, val]) = eval env val >>= defineVar env sym
-evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = setVar    env sym val
+evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = eval env val >>= setVar    env sym
 evalSpecialForm ___ (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
   where 
@@ -80,21 +81,8 @@ defaultEnv :: IO Env
 defaultEnv = nullEnv >>= bindVars defaultBindings
 
 defaultBindings :: [(String, LispVal)]
-defaultBindings = primitives
-
-primitives :: [(String, LispVal)]
-primitives = [("+", PrimitiveFunc lispPlus)]
-
-lispPlus :: [LispVal] -> ThrowsError LispVal
-lispPlus list = mapM unpackNum list >>= (return . Number . foldr1 (+))
-
-unpackNum :: LispVal -> ThrowsError Integer
-unpackNum (Number num) = return num
-unpackNum notNum = throwError $ TypeMismatch "number" notNum
-
-
-
-
+defaultBindings = map (makeFunc PrimitiveFunc) primitives
+  where makeFunc constructor (sym,func) = (sym,constructor func)
 
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = runErrorT (trapError action) >>= return . extractValue
@@ -103,4 +91,3 @@ extractValue :: ThrowsError String -> String
 extractValue (Right val) = val
 
 trapError action = catchError action (return . show)
-
