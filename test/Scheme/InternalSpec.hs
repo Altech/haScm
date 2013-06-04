@@ -1,3 +1,5 @@
+module Scheme.InternalSpec where
+
 import Test.Hspec
 
 import Control.Arrow ((>>>))

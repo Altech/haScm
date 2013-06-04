@@ -1,4 +1,5 @@
--- file Spec.hs
+module Scheme.EvaluatorSpec where
+
 import Scheme.Internal
 import Scheme.Evaluator
 import Scheme.Parser (parse,parseDatum)
@@ -122,11 +123,3 @@ spec = do
         it "if false then 1 else 2" $ do
           val <- runSample $ nullEnv' >>= evalExpr "(if #f 1 2)"
           val `shouldBe` expr "2"
-    -- describe "primitive functions" $ do 
-    --   describe "+" $ do
-    --     -- it "eval + should be an primitive function" $ 
-    --     --   Symbol "+" `shouldBeEvaluatedTo` (case getEnv "+" of Right v -> v)
-    --     it "eval (+ 1 1) should be evaluated to 2" $
-    --       List [Symbol "+", Number 1, Number 1] `shouldBeEvaluatedTo` Number 2
-    --     it "eval (+ 100 25) should be evaluated to 125" $
-    --       List [Symbol "+", Number 100, Number 25] `shouldBeEvaluatedTo` Number 125

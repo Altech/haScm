@@ -1,4 +1,5 @@
--- file Spec.hs
+module Scheme.Evaluator.PrimitivesSpec where
+
 import Scheme.Internal
 import Scheme.Evaluator
 import Scheme.Parser (parse,parseDatum)
@@ -115,6 +116,16 @@ spec = do
         "(string->symbol \"str\")" `shouldBeEvaluatedTo` "str"
       it "(string->symbol 2); => error" $ 
         "(string->symbol 2)" ! shouldThrow
+    describe "number->string" $ do
+      it "(number->string 23); => \"23\"" $ 
+        "(number->string 23)" `shouldBeEvaluatedTo` "\"23\""
+      it "(number->string \"a\"); => error" $ 
+        "(number->string  \"a\")" ! shouldThrow
+    describe "string->number" $ do
+      it "(string->number \"123\"); => 123" $ 
+        "(string->number \"123\")" `shouldBeEvaluatedTo` "123"
+      it "(string->number 2); => error" $ 
+        "(string->number 2)" ! shouldThrow
   describe "numeric operator" $ do
     describe "+" $ do
       it "(+ 1 2); => 3" $

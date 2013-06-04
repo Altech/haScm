@@ -1,3 +1,5 @@
+module Scheme.ParserSpec where
+
 -- file Spec.hs
 import Scheme.Internal
 import Scheme.Parser
