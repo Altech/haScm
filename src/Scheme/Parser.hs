@@ -5,11 +5,11 @@ module Scheme.Parser (
 
 import Control.Applicative ((<|>))
 import Control.Monad (liftM)
+import Data.Char (chr)
 import Text.Trifecta hiding (spaces)
 import Text.Trifecta.Delta (Delta(Lines))
-import Data.Char (chr)
 
-import Scheme.Internal
+import Scheme.Internal (LispVal(..))
 
 {- External representations
  ⟨Datum⟩ is what the read procedure (section 6.6.2) successfully parses. Note that any string that parses as an ⟨expression⟩ will also parse as a ⟨datum⟩.

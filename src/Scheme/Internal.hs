@@ -10,7 +10,7 @@ module Scheme.Internal (
 
 import Control.Arrow ((>>>))
 import Control.Monad.Error
-import Data.IORef
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 -- Val
 data LispVal = Number Integer
