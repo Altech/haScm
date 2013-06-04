@@ -42,6 +42,9 @@ spec = do
       it "symple list(syntax-sugar): \"(1 2)\"" $
         p "(1 2)" `shouldBe` (Success $ List [Number 1, Number 2])
 
+      it "symple list(syntax-sugar): \"(\\\"test1\\\" \\\"test2\\\")\"" $
+        p "(\"test1\" \"test2\")" `shouldBe` (Success $ List [String "test1", String "test2"])
+
       it "symple list: \"(1 . (2 . ()))\"" $
         p "(1 . (2 . ()))" `shouldBe` (Success $ List [Number 1, Number 2])
 

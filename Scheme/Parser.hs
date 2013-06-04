@@ -7,6 +7,7 @@ import Control.Applicative ((<|>))
 import Control.Monad (liftM)
 import Text.Trifecta hiding (spaces)
 import Text.Trifecta.Delta (Delta(Lines))
+import Data.Char (chr)
 
 import Scheme.Internal
 
@@ -45,8 +46,18 @@ parseCharacter = liftM Character $ do -- [Full]
   string "#\\"
   (string "space" >> return ' ') <|> (string "newline" >> return '\n') <|> anyChar
 
-parseString' = liftM String $ stringLiteral -- [TODO] Check exact syntax.
-
+parseString' :: Parser LispVal
+parseString' = do
+  char '"'
+  str <- many $ (try parseStringEscapedUnicode) <|> (try parseStringEscapedASCII) <|> noneOf "\""
+  char '"'
+  return $ String str
+  where
+    parseStringEscapedUnicode = liftM (chr . read) $ char '\\' >> count 4 digit
+    parseStringEscapedASCII = liftM convert $ char '\\' >> noneOf ""
+    controlChars =  [('n','\n'),('t','\t'),('r','\r'),('0','\0')]
+    convert c = maybe c id (lookup c controlChars) 
+    
 parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
   first <- letter <|> specialInitial 
   rest <- many (letter <|> digit <|> specialInitial <|> specialSubsequent)  
