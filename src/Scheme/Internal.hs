@@ -23,7 +23,8 @@ data LispVal = Number Integer
                -- | Port Handle
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 
                -- | IOFunc ([LispVal] -> IOThrowsError LispVal)
-             | Func {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env} 
+             | Func {params :: [String],  vararg :: (Maybe String), body :: [LispVal], closure :: Env} 
+             | Macro {params :: [String], vararg :: (Maybe String), body :: [LispVal]}
 
 instance Eq LispVal where (==) = eqVal
 instance Show LispVal where show = showVal
@@ -70,6 +71,7 @@ showVal (PrimitiveFunc _) = "<primitive>"
 -- showVal (IOFunc _) = "<IO primitive>"
 showVal (Func params vararg body closure) = 
   "(lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")"
+showVal (Macro params vararg body) =  "<macro>"
   
 showError :: LispError -> String
 showError (UnboundVar message varname) = message ++ ":" ++ varname
