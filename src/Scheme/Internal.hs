@@ -39,7 +39,7 @@ data LispError = NumArgs Integer [LispVal]
               | NotFunction String String
               | UnboundVar String String
               | Default String
-throwParserError s = throwError $ Parser s
+throwParserError s = throwError $ Parser s -- for Parser.hs
               
 instance Show LispError where show = showError
 instance Eq LispError where _ == _ = False

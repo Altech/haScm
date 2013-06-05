@@ -70,11 +70,21 @@ spec = do
           val `shouldBe` expr "1"
     describe "special forms" $ do
       describe "define" $ do
-        it "define a symbol as a value" $ do
+        it "define a value" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define id 1)",
                  "id"]
           val `shouldBe` expr "1"
+        it "define a function" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define (f x) x)",
+                 "(f 1)"]
+          val `shouldBe` expr "1"
+        it "define a function" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define (f x . y) y)",
+                 "(f 1 2 3 4)"]
+          val `shouldBe` expr "(2 3 4)"
       describe "define-macro" $ do
         it "define a macro without params" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
