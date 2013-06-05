@@ -27,7 +27,7 @@ readHistory = do
       hClose h
     else return ()
   where
-    addHistories contents = mapM addHistory (take 100 (lines contents))
+    addHistories contents = mapM addHistory (reverse . take 100 . reverse $ lines contents)
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
