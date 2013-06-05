@@ -5,9 +5,11 @@ module Scheme.Evaluator (
   ) where
 
 import Scheme.Internal
+import Scheme.Parser (readExprList)
 import Scheme.Evaluator.Primitives
 import Scheme.Evaluator.IOPrimitives
 
+import Control.Monad (liftM)
 import Control.Applicative
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
@@ -53,12 +55,14 @@ expand env (Macro params varargs body) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","if","bindings","defmacro"]
+specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","if","bindings","defmacro","load"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
 evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
 evalSpecialForm env (List [Symbol "define",Symbol sym, val]) = eval env val >>= defineVar env sym
+evalSpecialForm env (List (Symbol "define" : List (Symbol var : params) : body)) = makeNormalFunc env params body >>= defineVar env var
+evalSpecialForm env (List (Symbol "define" : DottedList (Symbol var : params) varargs : body)) = makeVarargsFunc varargs env params body >>= defineVar env var
 evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = eval env val >>= setVar    env sym
 evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body >>= defineVar env sym
 evalSpecialForm env (List (Symbol "define-macro" : DottedList (Symbol sym:params) varargs : body)) = makeVarargsMacro varargs params body >>= defineVar env sym
@@ -84,6 +88,8 @@ evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
   Bool bool <- eval env pred
   eval env (if bool then conseq else alt)
 evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= putStrLn >> return (String "")
+evalSpecialForm env (List [Symbol "load",  String filename]) = load filename >>= liftM last . mapM (eval env)
+  where load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 makeFunc varargs env params body = liftIO $ Func (map show params) varargs body <$> addFrame env

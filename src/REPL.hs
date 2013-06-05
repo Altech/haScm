@@ -9,12 +9,28 @@ import System.IO (openFile, hClose, IOMode(ReadMode), hGetContents)
 
 import Control.Monad (liftM)
 import Control.Arrow ((>>>))
+import Control.Applicative ((<$>))
 
 import Text.Trifecta (Result(Success, Failure))
 
 -- REPL
 getHistoryFilePath :: IO String
-getHistoryFilePath = getHomeDirectory >>= return . (++ "/.hasm_history")
+getHistoryFilePath = (++ "/.hasm_history") <$> getHomeDirectory
+
+getRunCommandFilePath :: IO String
+getRunCommandFilePath = (++ "/.hasmrc") <$> getHomeDirectory
+
+loadRc env = do
+  filename   <- getRunCommandFilePath
+  fileExists <- doesFileExist filename
+  if fileExists 
+    then do
+      let cmd = "(load \"" ++ filename ++ "\")" 
+      putStrLn $ "λ> " ++ cmd
+      evalString env cmd
+      putStrLn $ "OK!"
+      return env
+    else return env
 
 readHistory :: IO ()
 readHistory = do
@@ -56,7 +72,7 @@ runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = readHistory >> defaultEnv >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
+runRepl = readHistory >> defaultEnv >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
 
 -- main
 main :: IO ()
