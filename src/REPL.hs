@@ -1,6 +1,7 @@
 module Main where
 import Scheme.Evaluator
-import Scheme.Parser
+import Scheme.Parser (readExpr)
+import Scheme.Internal (liftThrows)
 import System.Console.Readline (readline, addHistory)
 import System.Directory (getHomeDirectory, doesFileExist)
 import System.Environment (getArgs)
@@ -33,9 +34,7 @@ readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
 
 evalString :: Env -> String -> IO String
-evalString env expr = case parse parseDatum expr of 
-                    Success val -> runIOThrows . liftM show . eval env $ val
-                    Failure doc -> return . show $ doc
+evalString env expr = runIOThrows $ liftThrows (readExpr expr) >>= eval env >>= return . show
 
 evalAndPrint :: Env -> String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn

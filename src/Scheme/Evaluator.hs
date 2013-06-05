@@ -1,11 +1,12 @@
 module Scheme.Evaluator (
-    eval,
+    eval, apply, 
     Env, defaultEnv,
     runIOThrows
   ) where
 
 import Scheme.Internal
 import Scheme.Evaluator.Primitives
+import Scheme.Evaluator.IOPrimitives
 
 import Control.Applicative
 
@@ -22,8 +23,7 @@ eval env (List (symbol:lest)) | isSpecialForm symbol = evalSpecialForm env (List
 eval env (List (hd:tl)) = do 
   val <- eval env hd
   case val of
-    Macro _ _ _ -> do
-      let macroVal = val
+    macroVal@(Macro _ _ _) -> do
       expand env macroVal tl >>= eval env
     funcVal -> do
       argVals <- mapM (eval env) tl
@@ -32,6 +32,7 @@ eval ___ badForm = throwError $ BadSpecialFrom "Unrecognized form" badForm
 -- apply
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
+apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args = 
   if num params /= num args && varargs == Nothing
   then throwError $ NumArgs (num params) args
@@ -44,6 +45,7 @@ apply (Func params varargs body closure) args =
       Just argName -> liftIO $ bindVars [(argName, List remainingArgs)] env
       Nothing -> return env
 apply notFunction _ = throwError $ TypeMismatch "function" notFunction
+-- expand
 expand :: Env -> LispVal -> [LispVal] -> IOThrowsError LispVal
 expand env (Macro params varargs body) args = do
   tempEnv <- liftIO $ addFrame env
@@ -57,10 +59,10 @@ isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
 evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
 evalSpecialForm env (List [Symbol "define",Symbol sym, val]) = eval env val >>= defineVar env sym
-evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body >>= defineVar env sym
-evalSpecialForm env (List (Symbol "define-macro" : (DottedList (Symbol sym:params) varargs) : body)) = makeVarargsMacro varargs params body >>= defineVar env sym
-evalSpecialForm env (List [Symbol "macroexpand" ,form]) = eval env form >>= macroExpand env
 evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = eval env val >>= setVar    env sym
+evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body >>= defineVar env sym
+evalSpecialForm env (List (Symbol "define-macro" : DottedList (Symbol sym:params) varargs : body)) = makeVarargsMacro varargs params body >>= defineVar env sym
+evalSpecialForm env (List [Symbol "macroexpand" ,form]) = eval env form >>= macroExpand env
 evalSpecialForm ___ (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
   where 
@@ -79,11 +81,8 @@ evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
 evalSpecialForm env (List (Symbol "lambda" : List params : body))               = makeNormalFunc env params body
 evalSpecialForm env (List (Symbol "lambda" : DottedList params varargs : body)) = makeVarargsFunc varargs env params body
 evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
-  bool <- eval env pred
-  liftIO $ putStrLn (show bool)
-  case bool of
-    Bool True  -> eval env conseq
-    Bool False -> eval env alt
+  Bool bool <- eval env pred
+  eval env (if bool then conseq else alt)
 evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= putStrLn >> return (String "")
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
@@ -99,7 +98,7 @@ defaultEnv :: IO Env
 defaultEnv = nullEnv >>= bindVars defaultBindings
 
 defaultBindings :: [(String, LispVal)]
-defaultBindings = map (makeFunc PrimitiveFunc) primitives
+defaultBindings = map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) (ioPrimitives ++ [("apply", applyProc)])
   where makeFunc constructor (sym,func) = (sym,constructor func)
 
 runIOThrows :: IOThrowsError String -> IO String
@@ -111,15 +110,17 @@ extractValue (Right val) = val
 trapError action = catchError action (return . show)
 
 
+applyProc [func, List args] = apply func args
+applyProc (func:args) = apply func args
 
-macroExpand env form' = do
-  case form' of 
+macroExpand env form = do
+  case form of 
     List (sym:args) -> do
       maybeMacro <- getMacro env sym
       case maybeMacro of
         Just macro -> expand env macro args
         Nothing -> List <$> mapM (macroExpand env) (sym:args)
-    _ -> return form'
+    _ -> return form
   where
     getMacro env val = case val of
       Symbol sym -> do 

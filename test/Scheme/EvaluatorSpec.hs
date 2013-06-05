@@ -39,6 +39,7 @@ evalExprs :: [String] -> Env -> IOThrowsError LispVal
 evalExprs strs env = mapM (\str -> eval env (expr str)) strs >>= return . last
 
 nullEnv' = liftIO nullEnv
+defaultEnv' = liftIO defaultEnv
 
 runSample action = runErrorT action >>= return . extractValue
 extractValue (Right val) = val
@@ -150,3 +151,7 @@ spec = do
         it "if false then 1 else 2" $ do
           val <- runSample $ nullEnv' >>= evalExpr "(if #f 1 2)"
           val `shouldBe` expr "2"
+    describe "apply" $ do
+      it "application + with (1 2 3) returns 6" $ do
+        val <- runSample $ defaultEnv' >>= evalExpr "(apply + 1 2 3)"
+        val `shouldBe` expr "6"

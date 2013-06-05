@@ -22,7 +22,7 @@ executable scheme
                       Scheme.Internal
                       Scheme.Evaluator
                       Scheme.Evaluator.Primitives
-  build-depends:      base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, HUnit, hspec, readline, directory, trifecta, QuickCheck, hspec
+  build-depends:      base ==4.5.*, parsec ==3.1.*, mtl ==2.1.*, HUnit, hspec, readline, directory, trifecta, ansi-wl-pprint, QuickCheck, hspec
 
 Source-Repository head
   Type:                 git

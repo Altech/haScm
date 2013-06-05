@@ -1,5 +1,7 @@
 module Scheme.Parser (
-    parseDatum
+    readExpr
+  , readExprList
+  , parseDatum
   , parse
   ) where
 
@@ -9,7 +11,19 @@ import Data.Char (chr)
 import Text.Trifecta hiding (spaces)
 import Text.Trifecta.Delta (Delta(Lines))
 
-import Scheme.Internal (LispVal(..))
+import Scheme.Internal (LispVal(..), ThrowsError, throwParserError)
+
+readOrThrow :: Show a => Parser a -> String -> ThrowsError a
+readOrThrow parser input = case parse parser input of 
+                    Success val -> return val
+                    Failure msg -> throwParserError msg
+
+readExpr :: String -> ThrowsError LispVal
+readExpr = readOrThrow parseDatum
+
+readExprList :: String -> ThrowsError [LispVal]
+readExprList = readOrThrow (endBy parseDatum spaces)
+
 
 {- External representations
  ⟨Datum⟩ is what the read procedure (section 6.6.2) successfully parses. Note that any string that parses as an ⟨expression⟩ will also parse as a ⟨datum⟩.
