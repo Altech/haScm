@@ -201,11 +201,11 @@ spec = do
             val `shouldBe`  expr "#f"
           it "provided unbound symbols, throw error" $ do
             ["(define a 1)", "(eq? a b)"] ! shouldThrow'
-        it "return false, when receive a symbol and a non-symbol" $ do
+        it "return true, when receive a symbol and a non-symbol" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define a 1)",
                  "(eq? a 1)"   ]
-          val `shouldBe`  expr "#f"
+          val `shouldBe`  expr "#t"
         it "compare values, when receive non-symbols" $ do
           val <- runSample $ defaultEnv' >>= evalExpr "(eq? '(1 2 3) '(1 2 3))"
           val `shouldBe`  expr "#t"

@@ -92,16 +92,8 @@ evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
 evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= putStrLn >> return (String "")
 evalSpecialForm env (List [Symbol "load",  String filename]) = load filename >>= liftM last . mapM (eval env)
   where load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
-evalSpecialForm env (List [Symbol "eq?", v1, v2]) = case (v1,v2) of
-  (Symbol s1, Symbol s2) -> do
-    maybeR1 <- liftIO $ lookupVar env s1
-    maybeR2 <- liftIO $ lookupVar env s2
-    case (maybeR1, maybeR2) of 
-      (Just r1, Just r2) -> return . Bool $ r1 == r2
-      (_, _) -> throwError $ UnboundVar "Compare unbound variables" (s1 ++ "," ++ s2)
-  (Symbol _, _) -> return $ Bool False
-  (_, Symbol _) -> return $ Bool False
-  (v1, v2) -> eval env (List [Symbol "equal?", v1, v2])
+evalSpecialForm env (List [Symbol "eq?", v1, v2]) = eqRef env v1 v2
+
 evalSpecialForm env (List [Symbol "eqv?", v1, v2]) = evalSpecialForm env (List [Symbol "eq?", v1, v2])
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
@@ -149,3 +141,14 @@ macroExpand env form = do
           else return Nothing
       _ -> return Nothing
     isMacro v = case v of Macro _ _ _ -> Just v; _ -> Nothing
+
+eqRef env v1 v2 = case (v1,v2) of
+  (Symbol s1, Symbol s2) -> do
+    maybeR1 <- liftIO $ lookupVar env s1
+    maybeR2 <- liftIO $ lookupVar env s2
+    case (maybeR1, maybeR2) of 
+      (Just r1, Just r2) -> return . Bool $ r1 == r2
+      (_, _) -> throwError $ UnboundVar "Compare unbound variables" (s1 ++ "," ++ s2)
+  (Symbol s, v) -> eval env (Symbol s) >>= eqRef env v
+  (v, Symbol s) -> eval env (Symbol s) >>= eqRef env v
+  (v1, v2) -> eval env (List [Symbol "equal?", v1, v2])
