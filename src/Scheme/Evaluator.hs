@@ -55,7 +55,7 @@ expand env (Macro params varargs body) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
+specialForms = ["define","define-macro","macroexpand-1","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -67,7 +67,7 @@ evalSpecialForm env (List (Symbol "define" : DottedList (Symbol var : params) va
 evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = eval env val >>= setVar    env sym
 evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body >>= defineVar env sym
 evalSpecialForm env (List (Symbol "define-macro" : DottedList (Symbol sym:params) varargs : body)) = makeVarargsMacro varargs params body >>= defineVar env sym
-evalSpecialForm env (List [Symbol "macroexpand" ,form]) = eval env form >>= macroExpand env
+evalSpecialForm env (List [Symbol "macroexpand-1" ,form]) = eval env form >>= macroExpand env
 evalSpecialForm ___ (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
   where 

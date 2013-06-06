@@ -109,28 +109,28 @@ spec = do
         it "define a macro without params" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define-macro (m1) '(1 2 3))",
-                 "(macroexpand '(m1))"]
+                 "(macroexpand-1 '(m1))"]
           val `shouldBe` expr "(1 2 3)"
         it "define a macro with params" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define-macro (m1 a b) `(+ ,a ,b))",
-                 "(macroexpand '(m1 1 2))"]
+                 "(macroexpand-1 '(m1 1 2))"]
           val `shouldBe` expr "(+ 1 2)"
         it "define a macro with dotted params" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define-macro (m1 a b . c) `(+ ,a ,b ,@c))",
-                 "(macroexpand '(m1 1 2 3 4))"]
+                 "(macroexpand-1 '(m1 1 2 3 4))"]
           val `shouldBe` expr "(+ 1 2 3 4)"
-      describe "macroexpand" $ do
+      describe "macroexpand-1" $ do
         it "expand a form of macro" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define-macro (m1) '(1 2 3))",
-                 "(macroexpand '(m1))"]
+                 "(macroexpand-1 '(m1))"]
           val `shouldBe` expr "(1 2 3)"
         it "expand a form nesting a macro" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define-macro (m1 a b) `(+ ,a ,b))",
-                 "(macroexpand '(+ (m1 1 2) 5))"]
+                 "(macroexpand-1 '(+ (m1 1 2) 5))"]
           val `shouldBe` expr "(+ (+ 1 2) 5)"
       describe "set!" $ do 
         it "change the value of the symbol" $ do
