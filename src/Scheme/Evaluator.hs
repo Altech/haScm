@@ -55,7 +55,7 @@ expand env (Macro params varargs body) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","if","bindings","defmacro","load","eq?"]
+specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","if","bindings","defmacro","load","eq?","eqv?"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -101,6 +101,7 @@ evalSpecialForm env (List [Symbol "eq?", v1, v2]) = case (v1,v2) of
   (Symbol _, _) -> return $ Bool False
   (_, Symbol _) -> return $ Bool False
   (v1, v2) -> eval env (List [Symbol "equal?", v1, v2])
+evalSpecialForm env (List [Symbol "eqv?", v1, v2]) = evalSpecialForm env (List [Symbol "eq?", v1, v2])
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 makeFunc varargs env params body = liftIO $ Func (map show params) varargs body <$> addFrame env
