@@ -25,8 +25,8 @@ eval env (List (symbol:lest)) | isSpecialForm symbol = evalSpecialForm env (List
 eval env (List (hd:tl)) = do 
   val <- eval env hd
   case val of
-    macroVal@(Macro _ _ _) -> do
-      expand env macroVal tl >>= eval env
+    macroVal@(Macro _ _ _ _) -> do
+      expand macroVal tl >>= eval env
     funcVal -> do
       argVals <- mapM (eval env) tl
       apply funcVal argVals
@@ -48,9 +48,9 @@ apply (Func params varargs body closure) args =
       Nothing -> return env
 apply notFunction _ = throwError $ TypeMismatch "function" notFunction
 -- expand
-expand :: Env -> LispVal -> [LispVal] -> IOThrowsError LispVal
-expand env (Macro params varargs body) args = do
-  tempEnv <- liftIO $ addFrame env
+expand :: LispVal -> [LispVal] -> IOThrowsError LispVal
+expand (Macro params varargs body closure) args = do
+  tempEnv <- liftIO $ addFrame closure
   apply (Func params varargs body tempEnv) args 
 
 --- Special Forms
@@ -65,8 +65,8 @@ evalSpecialForm env (List [Symbol "define", Symbol sym, val]) = eval env val >>=
 evalSpecialForm env (List (Symbol "define" : List (Symbol var : params) : body)) = makeNormalFunc env params body >>= defineVar env var
 evalSpecialForm env (List (Symbol "define" : DottedList (Symbol var : params) varargs : body)) = makeVarargsFunc varargs env params body >>= defineVar env var
 evalSpecialForm env (List [Symbol "set!" , Symbol sym, val]) = eval env val >>= setVar    env sym
-evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body >>= defineVar env sym
-evalSpecialForm env (List (Symbol "define-macro" : DottedList (Symbol sym:params) varargs : body)) = makeVarargsMacro varargs params body >>= defineVar env sym
+evalSpecialForm env (List (Symbol "define-macro" : List (Symbol sym:params) : body)) = makeNormalMacro params body env >>= defineVar env sym
+evalSpecialForm env (List (Symbol "define-macro" : DottedList (Symbol sym:params) varargs : body)) = makeVarargsMacro varargs params body env >>= defineVar env sym
 evalSpecialForm env (List [Symbol "macroexpand-1" ,form]) = eval env form >>= macroExpand env
 evalSpecialForm ___ (List [Symbol "quote", form]) = return form
 evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
@@ -101,7 +101,7 @@ makeFunc varargs env params body = liftIO $ Func (map show params) varargs body 
 makeNormalFunc = makeFunc Nothing
 makeVarargsFunc = makeFunc . Just . show
 
-makeMacro varargs params body = return $ Macro (map show params) varargs body
+makeMacro varargs params body closure = return $ Macro (map show params) varargs body closure
 makeNormalMacro = makeMacro Nothing
 makeVarargsMacro = makeMacro . Just . show
 
@@ -129,7 +129,7 @@ macroExpand env form = do
     List (sym:args) -> do
       maybeMacro <- getMacro env sym
       case maybeMacro of
-        Just macro -> expand env macro args
+        Just macro -> expand macro args
         Nothing -> List <$> mapM (macroExpand env) (sym:args)
     _ -> return form
   where
@@ -140,7 +140,7 @@ macroExpand env form = do
           then eval env val >>= return . isMacro
           else return Nothing
       _ -> return Nothing
-    isMacro v = case v of Macro _ _ _ -> Just v; _ -> Nothing
+    isMacro v = case v of Macro _ _ _ _ -> Just v; _ -> Nothing
 
 eqRef env v1 v2 = case (v1,v2) of
   (Symbol s1, Symbol s2) -> do
