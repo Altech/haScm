@@ -12,6 +12,9 @@ import Scheme.Evaluator.IOPrimitives
 import Control.Monad (liftM)
 import Control.Applicative
 
+import System.Directory (getDirectoryContents, doesDirectoryExist)
+import System.FilePath.Posix (joinPath, dropExtension)
+
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- self-evaluating values
 eval _ val@(Number _) = return val
@@ -55,7 +58,7 @@ expand (Macro params varargs body closure) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","define-all","macroexpand-1","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
+specialForms = ["define","define-macro","define-all","require","macroexpand-1","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -94,8 +97,8 @@ evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= p
 evalSpecialForm env (List [Symbol "load",  String filename]) = load filename >>= liftM last . mapM (eval env)
   where load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
 evalSpecialForm env (List [Symbol "eq?", v1, v2]) = eqRef env v1 v2
-
 evalSpecialForm env (List [Symbol "eqv?", v1, v2]) = evalSpecialForm env (List [Symbol "eq?", v1, v2])
+evalSpecialForm env (List [Symbol "require", Symbol name]) = eval env (Symbol "path") >>= searchPath name >>= (\path -> eval env (List [Symbol "load", String path]))
 evalSpecialForm ___ badForm = throwError $ BadSpecialFrom "Unrecognized special form" badForm
 
 makeFunc varargs env params body = liftIO $ Func (map show params) varargs body <$> addFrame env
@@ -110,8 +113,12 @@ defaultEnv :: IO Env
 defaultEnv = nullEnv >>= bindVars defaultBindings
 
 defaultBindings :: [(String, LispVal)]
-defaultBindings = map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) (ioPrimitives ++ [("apply", applyProc)])
+defaultBindings = map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) (ioPrimitives ++ [("apply", applyProc)]) ++ buildInVars
   where makeFunc constructor (sym,func) = (sym,constructor func)
+
+
+
+buildInVars = [("path", List [String "/usr/lib/hascm/scm"])]
 
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = runErrorT (trapError action) >>= return . extractValue
@@ -153,3 +160,33 @@ eqRef env v1 v2 = case (v1,v2) of
   (Symbol s, v) -> eval env (Symbol s) >>= eqRef env v
   (v, Symbol s) -> eval env (Symbol s) >>= eqRef env v
   (v1, v2) -> eval env (List [Symbol "equal?", v1, v2])
+
+
+
+searchPath :: String -> LispVal -> IOThrowsError String
+searchPath name (List ls) = searchPath' name ls
+searchPath _ v = throwError $ TypeMismatch "list" v
+
+searchPath' :: String -> [LispVal] -> IOThrowsError String
+searchPath' name paths = do
+  case paths of
+    (String path):rest -> do
+      doesExist <- liftIO $ doesDirectoryExist path
+      if doesExist 
+        then do 
+          entries <- liftIO $ getDirectoryContents path 
+          case lookupFile entries of
+            Just filename -> return $ joinPath [path, filename]
+            Nothing -> searchPath' name rest
+        else 
+          searchPath' name rest
+    (v:_) -> throwError $ TypeMismatch "string" v
+    [] -> throwError $ Default ("module " ++ name ++ " was not found.")
+  where
+    lookupFile entries = case filter (\file -> (dropExtension file == dropExtension name) && notCDPD file) entries of (filename:_) -> Just filename; _ -> Nothing
+    notCDPD :: String -> Bool
+    notCDPD "."   = False
+    notCDPD ".."  = False
+    notCDPD _ = True
+
+

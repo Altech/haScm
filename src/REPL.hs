@@ -46,6 +46,11 @@ readHistory = do
   where
     addHistories contents = mapM addHistory (reverse . take 100 . reverse $ lines contents)
 
+defModuleSystem :: Env -> IO Env
+defModuleSystem env = mapM (evalString env) [code1, code2] >> return env
+  where code1 = "(define-macro (module . definitions) (define (map f ls) (if (null? ls) '() (cons (f (car ls)) (map f (cdr ls))))) `((lambda () (define module-exported-names '()) (define-macro (export . names) `(begin ,@(map (lambda (name) `(set! module-exported-names (cons (cons ',name ,name) module-exported-names))) names))) ,@definitions module-exported-names)))"
+        code2 = "(define-macro (import module) `(define-all ,module))"
+
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
 
@@ -72,7 +77,7 @@ runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = readHistory >> defaultEnv >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
+runRepl = readHistory >> defaultEnv >>= defModuleSystem >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
 
 -- main
 main :: IO ()
