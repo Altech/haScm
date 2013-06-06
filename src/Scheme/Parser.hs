@@ -108,7 +108,10 @@ parseList = try parseNormalList <|> try parseDottedList <|> parseAbbreviation
                    ("," , "unquote")]
         lookupAbbrev abbrev = case lookup abbrev abbrevs of Just sym -> sym
         
-spaces = space >> skipMany space
+spaces = try $ (comment <|> spaces') >> skipMany (comment <|> spaces')
+  where
+    spaces' = try space >> skipMany space
+    comment = char ';' >> many (noneOf "\n") >> return ()
 
 -- For debug
 parse :: Show a => Parser a -> String -> Result a
