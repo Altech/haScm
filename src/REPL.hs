@@ -15,10 +15,10 @@ import Text.Trifecta (Result(Success, Failure))
 
 -- REPL
 getHistoryFilePath :: IO String
-getHistoryFilePath = (++ "/.hasm_history") <$> getHomeDirectory
+getHistoryFilePath = (++ "/.hascm_history") <$> getHomeDirectory
 
 getRunCommandFilePath :: IO String
-getRunCommandFilePath = (++ "/.hasmrc") <$> getHomeDirectory
+getRunCommandFilePath = (++ "/.hascmrc") <$> getHomeDirectory
 
 loadRc env = do
   filename   <- getRunCommandFilePath
