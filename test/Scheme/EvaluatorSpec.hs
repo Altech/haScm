@@ -51,7 +51,10 @@ evalExprs strs env = mapM (\str -> eval env (expr str)) strs >>= return . last
 nullEnv' = liftIO nullEnv
 defaultEnv' = liftIO defaultEnv
 
-runSample action = runErrorT action >>= return . extractValue
+runSample action = runErrorT (trapError action) >>= return . extractValue
+
+trapError action = catchError action (return . String . show)
+
 extractValue (Right val) = val
                                      
 spec = do 
@@ -169,6 +172,12 @@ spec = do
           val `shouldBe`  expr "(1 1 2 3)"
       describe "lambda" $ do 
         it "" pending
+      describe "begin" $ do 
+        it "evaluate each statement and return the last result"  $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(begin (set! a (+ a 1)) (set! a (+ a 1)) a)"]
+          val `shouldBe` expr "3"
       describe "if" $ do
         it "if true then 1 else 2" $ do
           val <- runSample $ nullEnv' >>= evalExpr "(if #t 1 2)"

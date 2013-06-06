@@ -55,7 +55,7 @@ expand env (Macro params varargs body) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","if","bindings","defmacro","load","eq?","eqv?"]
+specialForms = ["define","define-macro","macroexpand","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
@@ -85,6 +85,7 @@ evalSpecialForm env (List [Symbol "quasiquote", form]) = unquote form 1
     destructList action = (\val -> case val of List ls -> ls) <$> action
 evalSpecialForm env (List (Symbol "lambda" : List params : body))               = makeNormalFunc env params body
 evalSpecialForm env (List (Symbol "lambda" : DottedList params varargs : body)) = makeVarargsFunc varargs env params body
+evalSpecialForm env (List (Symbol "begin" : stmts)) = mapM (eval env) stmts >>= return . last
 evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
   Bool bool <- eval env pred
   eval env (if bool then conseq else alt)
