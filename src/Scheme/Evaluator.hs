@@ -12,7 +12,7 @@ import Scheme.Evaluator.IOPrimitives
 import Control.Monad (liftM)
 import Control.Applicative
 
-import System.Directory (getDirectoryContents, doesDirectoryExist)
+import System.Directory (getDirectoryContents, doesFileExist, doesDirectoryExist)
 import System.FilePath.Posix (joinPath, dropExtension)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
@@ -94,8 +94,9 @@ evalSpecialForm env (List [Symbol "if", pred, conseq, alt]) = do
   Bool bool <- eval env pred
   eval env (if bool then conseq else alt)
 evalSpecialForm env (List [Symbol "bindings"]) = liftIO $ showBindings env >>= putStrLn >> return (String "")
-evalSpecialForm env (List [Symbol "load",  String filename]) = load filename >>= liftM last . mapM (eval env)
+evalSpecialForm env (List [Symbol "load",  String filename]) = ifExist filename >>= load >>= liftM last . mapM (eval env)
   where load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
+        ifExist filename = liftIO (doesFileExist filename) >>= (\b -> if b then return filename else throwError $ Default ("The file does not exist: " ++ filename))
 evalSpecialForm env (List [Symbol "eq?", v1, v2]) = eqRef env v1 v2
 evalSpecialForm env (List [Symbol "eqv?", v1, v2]) = evalSpecialForm env (List [Symbol "eq?", v1, v2])
 evalSpecialForm env (List [Symbol "require", Symbol name]) = eval env (Symbol "path") >>= searchPath name >>= (\path -> eval env (List [Symbol "load", String path]))
