@@ -3,7 +3,7 @@ module Scheme.Internal (
   , LispError (..)
   , ThrowsError, IOThrowsError, liftThrows
   , throwError, catchError, throwParserError
-  , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars
+  , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars, lookupVar, bindSymbols
   , liftIO, runErrorT
   , showBindings
   ) where
@@ -101,7 +101,6 @@ type Cell  = IORef LispVal
 type Frame = IORef [(String, Cell)]
 type Env   = IORef [Frame]
 
-
 getVar    :: Env -> String ->            IOThrowsError LispVal
 getVar envRef sym = do
   maybeCell <- liftIO $ lookupVar envRef sym
@@ -133,6 +132,17 @@ defineVarInFrame sym val frameRef = do
       cell <- newIORef val
       writeIORef frameRef ((sym,cell):frame)
       return val
+
+bindSymbols :: Env -> String -> String -> IOThrowsError LispVal
+bindSymbols envRef sym sym' = do
+  maybeCell <- liftIO $ lookupVar envRef sym'
+  case maybeCell of
+    Just cell -> liftIO $ do
+      frameRef <- getCurrentFrame envRef
+      frame <- readIORef frameRef
+      writeIORef frameRef ((sym,cell):(filter (not . (==sym) . fst) frame))
+      readIORef cell
+    Nothing -> throwError $ UnboundVar "Getting an unbound variable: " sym'
 
 lookupVar :: Env -> String -> IO (Maybe Cell)
 lookupVar envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> return)

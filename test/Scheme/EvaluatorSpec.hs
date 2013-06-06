@@ -21,13 +21,23 @@ shouldBeEvaluatedTo val expect = do
     Right ret -> if ret == expect then return () else assertFailure ("Expected: " ++ show expect ++ "\n" ++ " but got: " ++ show ret)
     Left err  -> assertFailure ("Expected: Right _\n but got: Left err (err: " ++ show err ++ ")")
     
-shouldThrow :: IOThrowsError LispVal -> () -> Expectation
-shouldThrow execution _ = do
-  maybeVal <- runErrorT $ execution
+shouldThrow :: String -> Expectation
+shouldThrow expr = do
+  env <- nullEnv
+  maybeVal <- runErrorT $ evalExpr expr env
   case maybeVal of 
     Right ret -> assertFailure ("Expected: Left _\n but got: Right (" ++ show ret ++ ")")
     Left err  -> return ()
 
+shouldThrow' :: [String] -> Expectation
+shouldThrow' expr = do
+  env <- nullEnv
+  maybeVal <- runErrorT $ evalExprs expr env
+  case maybeVal of 
+    Right ret -> assertFailure ("Expected: Left _\n but got: Right (" ++ show ret ++ ")")
+    Left err  -> return ()
+    
+(!) = flip ($)
 
 expr :: String -> LispVal
 expr s = case parse parseDatum s of Success exp -> exp
@@ -62,7 +72,7 @@ spec = do
     describe "identifier" $ do
       describe "<symbol>" $ do 
         it "eval (Symbol \"id\") should throw error" $ do
-          (nullEnv' >>= evalExpr "id") `shouldThrow` () 
+          "id" ! shouldThrow
         it "eval (Symbol \"id\") should be evaluated to its content" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define id 1)",
@@ -85,6 +95,13 @@ spec = do
                  "(define (f x . y) y)",
                  "(f 1 2 3 4)"]
           val `shouldBe` expr "(2 3 4)"
+        it "when define a symbol as alias of another, changing the value should propagate." $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(define b a)",
+                 "(set! a 2)",
+                 "b"]
+          val `shouldBe` expr "2"
       describe "define-macro" $ do
         it "define a macro without params" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
@@ -134,9 +151,7 @@ spec = do
                  "`(1 ,id)"]
           val `shouldBe` expr "(1 1)"
         it "quote a list including an double unquote(should throw)" $ do
-           (nullEnv' >>= evalExprs [
-            "(define id 1)",
-            "`(1 ,,id)"]) `shouldThrow` ()
+            ["(define id 1)", "`(1 ,,id)"] ! shouldThrow'
         it "quote a list twice including an unquote" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
                  "(define id 1)",
@@ -161,6 +176,30 @@ spec = do
         it "if false then 1 else 2" $ do
           val <- runSample $ nullEnv' >>= evalExpr "(if #f 1 2)"
           val `shouldBe` expr "2"
+      describe "eq?" $ do
+        describe "compare references, when receive symbols" $ do
+          it "provided same references, return true" $ do
+            val <- runSample $ nullEnv' >>= evalExprs [
+                   "(define a 1)",
+                   "(define b a)",
+                   "(eq? a b)"   ]
+            val `shouldBe`  expr "#t"
+          it "provided different references, return false" $ do
+            val <- runSample $ nullEnv' >>= evalExprs [
+                   "(define a 1)",
+                   "(define b 1)",
+                   "(eq? a b)"   ]
+            val `shouldBe`  expr "#f"
+          it "provided unbound symbols, throw error" $ do
+            ["(define a 1)", "(eq? a b)"] ! shouldThrow'
+        it "return false, when receive a symbol and a non-symbol" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(eq? a 1)"   ]
+          val `shouldBe`  expr "#f"
+        it "compare values, when receive non-symbols" $ do
+          val <- runSample $ defaultEnv' >>= evalExpr "(eq? '(1 2 3) '(1 2 3))"
+          val `shouldBe`  expr "#t"
     describe "apply" $ do
       it "application + with (1 2 3) returns 6" $ do
         val <- runSample $ defaultEnv' >>= evalExpr "(apply + 1 2 3)"
