@@ -58,11 +58,12 @@ expand (Macro params varargs body closure) args = do
 
 --- Special Forms
 specialForms :: [String]
-specialForms = ["define","define-macro","define-all","require","macroexpand-1","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
+specialForms = ["eval","define","define-macro","define-all","require","macroexpand-1","set!","quote","quasiquote","lambda","begin","if","bindings","defmacro","load","eq?","eqv?"]
 isSpecialForm :: LispVal -> Bool
 isSpecialForm (Symbol name) = name `elem` specialForms
 isSpecialForm _ = False
 evalSpecialForm :: Env -> LispVal -> IOThrowsError LispVal
+evalSpecialForm env (List [Symbol "eval", form]) = eval env form >>= eval env
 evalSpecialForm env (List [Symbol "define", Symbol sym, Symbol sym']) = bindSymbols env sym sym'
 evalSpecialForm env (List [Symbol "define", Symbol sym, val]) = eval env val >>= defineVar env sym
 evalSpecialForm env (List (Symbol "define" : List (Symbol var : params) : body)) = makeNormalFunc env params body >>= defineVar env var

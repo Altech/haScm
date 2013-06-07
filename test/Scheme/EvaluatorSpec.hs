@@ -58,7 +58,7 @@ trapError action = catchError action (return . String . show)
 extractValue (Right val) = val
                                      
 spec = do 
-  describe "eval" $ do
+  describe "Evaluator" $ do
     describe "(eval [self-evaluating-value]) returns self." $ do
       describe "<number>" $ do
         it "eval (Number 12) should be evaluated to (Number 12)" $
@@ -82,6 +82,20 @@ spec = do
                  "id"]
           val `shouldBe` expr "1"
     describe "special forms" $ do
+      describe "eval" $ do
+        it "evaluate a quoted compound form and do application" $ do
+          val <- runSample $ defaultEnv' >>= evalExpr "(eval '(+ 1 2))"
+          val `shouldBe` expr "3"
+        it "define a symbol by `eval`, it is visible in the outside environment" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(eval '(define a 1))",
+                 "a" ]
+          val `shouldBe` expr "1"
+        it "define a symbol beforehand, it is visible in the `eval` environment" $ do
+          val <- runSample $ nullEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(eval 'a)"]
+          val `shouldBe` expr "1"
       describe "define" $ do
         it "define a value" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
@@ -202,7 +216,7 @@ spec = do
           it "provided unbound symbols, throw error" $ do
             ["(define a 1)", "(eq? a b)"] ! shouldThrow'
         it "return true, when receive a symbol and a non-symbol" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
+          val <- runSample $ defaultEnv' >>= evalExprs [
                  "(define a 1)",
                  "(eq? a 1)"   ]
           val `shouldBe`  expr "#t"
