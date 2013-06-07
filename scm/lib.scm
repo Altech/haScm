@@ -1,4 +1,4 @@
-(write "load list library...")
+(display "load list library...")
 
 (define list-module
   (module
@@ -70,8 +70,8 @@
      caaar caadr cadar caddr cdaar cdadr cddar cdddr
      caaaar caaadr caadar caaddr cadaar cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr)))
 
-(write "[complete]")
-(write "load num library...")
+(display "[complete]\n")
+(display "load num library...")
 
 
 (define num-module
@@ -98,4 +98,20 @@
       zero? positive? negative?
       even? odd?)))
 
-(write "[complete]")
+(display "[complete]\n")
+(display "load io library...")
+
+(define io-module
+  (module
+   (define (call-with-input-file file proc)
+     (let ((port (open-input-file file)))
+       (proc port)
+       (close-input-file port)))
+
+   (define (call-with-output-file file proc)
+     (let ((port (open-output-file)))
+       (proc port)
+       (close-output-file port)))
+   (export call-with-input-file call-with-output-file)))
+
+(display "[complete]\n")

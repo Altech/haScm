@@ -1,4 +1,4 @@
-(write "load core library...")
+(display "load core library...")
 
 (define core-module
   (module
@@ -114,4 +114,4 @@
      member memv memq
      list set-car! set-cdr! map for-each)))
 
-(write "[complete]")
+(display "[complete]\n")

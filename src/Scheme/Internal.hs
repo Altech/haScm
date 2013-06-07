@@ -5,7 +5,7 @@ module Scheme.Internal (
   , throwError, catchError, throwParserError
   , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars, lookupVar, bindSymbols
   , liftIO, runErrorT
-  , showBindings
+  , showValPretty, showBindings
   ) where
 
 import Control.Arrow ((>>>))
@@ -71,9 +71,27 @@ showVal (DottedList _init _last) = "(" ++ unwordsList _init ++ " . " ++ show _la
 showVal (Port _) = "<IO port>"
 showVal (PrimitiveFunc _) = "<primitive>"
 showVal (IOFunc _) = "<IO primitive>"
-showVal (Func params vararg body closure) = 
-  "(lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")"
+showVal (Func params vararg body closure) = "<closure>"
 showVal (Macro params vararg body closure) =  "<macro>"
+unwordsList = unwords . map showVal
+
+showValPretty :: LispVal -> String
+showValPretty val@(Number _) = showVal val
+showValPretty val@(Bool _) = showVal val
+showValPretty val@(Character _) = showVal val
+showValPretty (String contents) = contents
+showValPretty val@(Symbol _) = showVal val
+showValPretty (List contents) = "(" ++ unwordsListPretry contents ++ ")"
+showValPretty (DottedList _init _last) = "(" ++ unwordsListPretry _init ++ " . " ++ showValPretty _last ++ ")"
+showValPretty (Port h) = "<IO port: " ++ extractPath (show h) ++ ">"
+  where extractPath str = init . drop 9 $ str
+showValPretty val@(PrimitiveFunc _) = showVal val
+showValPretty val@(IOFunc _) = showVal val
+showValPretty (Func params vararg body closure) = 
+  "<closure: (lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")>"
+showValPretty (Macro params vararg body closure) =  
+  "<macro: (define-macro (_______" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")>"
+unwordsListPretry = unwords . map showValPretty
   
 showError :: LispError -> String
 showError (UnboundVar message varname) = message ++ ":" ++ varname
@@ -83,8 +101,6 @@ showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected 
 showError (Parser doc) = "Parse error \n" ++ show doc
 showError (NotFunction message found) = message ++ "; found " ++ found
 showError (Default message) = message
-
-unwordsList = unwords . map showVal
 
 
 
