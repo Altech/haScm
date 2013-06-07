@@ -11,9 +11,9 @@ import Control.Monad (liftM)
 import System.IO
 
 ioPrimitives :: [(String, [LispVal] -> IOThrowsError LispVal)]
-ioPrimitives = [("open-input-file", makePort ReadMode),
-                ("open-output-file", makePort WriteMode),
-                ("close-input-file", closePort),
+ioPrimitives = [("open-input-file",   makePort ReadMode),
+                ("open-output-file",  makePort WriteMode),
+                ("close-input-file",  closePort),
                 ("close-output-file", closePort),
                 ("current-input-port",  \[] -> return $ (Port stdin)),
                 ("current-output-port", \[] -> return $ (Port stdout)),

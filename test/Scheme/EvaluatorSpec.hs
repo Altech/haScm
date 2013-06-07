@@ -82,20 +82,6 @@ spec = do
                  "id"]
           val `shouldBe` expr "1"
     describe "special forms" $ do
-      describe "eval" $ do
-        it "evaluate a quoted compound form and do application" $ do
-          val <- runSample $ defaultEnv' >>= evalExpr "(eval '(+ 1 2))"
-          val `shouldBe` expr "3"
-        it "define a symbol by `eval`, it is visible in the outside environment" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
-                 "(eval '(define a 1))",
-                 "a" ]
-          val `shouldBe` expr "1"
-        it "define a symbol beforehand, it is visible in the `eval` environment" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
-                 "(define a 1)",
-                 "(eval 'a)"]
-          val `shouldBe` expr "1"
       describe "define" $ do
         it "define a value" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
@@ -121,31 +107,20 @@ spec = do
           val `shouldBe` expr "2"
       describe "define-macro" $ do
         it "define a macro without params" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
+          val <- runSample $ defaultEnv' >>= evalExprs [
                  "(define-macro (m1) '(1 2 3))",
                  "(macroexpand-1 '(m1))"]
           val `shouldBe` expr "(1 2 3)"
         it "define a macro with params" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
+          val <- runSample $ defaultEnv' >>= evalExprs [
                  "(define-macro (m1 a b) `(+ ,a ,b))",
                  "(macroexpand-1 '(m1 1 2))"]
           val `shouldBe` expr "(+ 1 2)"
         it "define a macro with dotted params" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
+          val <- runSample $ defaultEnv' >>= evalExprs [
                  "(define-macro (m1 a b . c) `(+ ,a ,b ,@c))",
                  "(macroexpand-1 '(m1 1 2 3 4))"]
           val `shouldBe` expr "(+ 1 2 3 4)"
-      describe "macroexpand-1" $ do
-        it "expand a form of macro" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
-                 "(define-macro (m1) '(1 2 3))",
-                 "(macroexpand-1 '(m1))"]
-          val `shouldBe` expr "(1 2 3)"
-        it "expand a form nesting a macro" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
-                 "(define-macro (m1 a b) `(+ ,a ,b))",
-                 "(macroexpand-1 '(+ (m1 1 2) 5))"]
-          val `shouldBe` expr "(+ (+ 1 2) 5)"
       describe "set!" $ do 
         it "change the value of the symbol" $ do
           val <- runSample $ nullEnv' >>= evalExprs [
@@ -227,3 +202,29 @@ spec = do
       it "application + with (1 2 3) returns 6" $ do
         val <- runSample $ defaultEnv' >>= evalExpr "(apply + 1 2 3)"
         val `shouldBe` expr "6"
+    describe "built-in functions" $ do
+      describe "eval" $ do
+        it "evaluate a quoted compound form and do application" $ do
+          val <- runSample $ defaultEnv' >>= evalExpr "(eval '(+ 1 2))"
+          val `shouldBe` expr "3"
+        it "define a symbol by `eval`, it is visible in the outside environment" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(eval '(define a 1))",
+                 "a" ]
+          val `shouldBe` expr "1"
+        it "define a symbol beforehand, it is visible in the `eval` environment" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(eval 'a)"]
+          val `shouldBe` expr "1"
+      describe "macroexpand-1" $ do
+        it "expand a form of macro" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define-macro (m1) '(1 2 3))",
+                 "(macroexpand-1 '(m1))"]
+          val `shouldBe` expr "(1 2 3)"
+        it "expand a form nesting a macro" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define-macro (m1 a b) `(+ ,a ,b))",
+                 "(macroexpand-1 '(+ (m1 1 2) 5))"]
+          val `shouldBe` expr "(+ (+ 1 2) 5)"

@@ -113,17 +113,3 @@ cdr [DottedList (_:xs) tl] = return $ DottedList xs tl
 cdr [badArg] = throwError $ TypeMismatch "pair" badArg
 cdr badArgList = throwError $ NumArgs 1 badArgList
 
-
--- ioPrimitives :: [(String, [LispVal] -> IOThrowsError LispVal)]
--- ioPrimitives = [
---   ("set-car!",setCar),
---   ("set-cdr!",setCdr),
---   ("eq?",eq)
--- ]
-
-
--- setCar :: [LispVal] -> IOThrowsError LispVal
-
--- neq?
--- list, length, memq, last, append,
--- load

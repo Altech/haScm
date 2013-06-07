@@ -6,6 +6,7 @@ module Scheme.Internal (
   , Env, nullEnv, setVar, getVar, defineVar, addFrame, isBound, bindVars, lookupVar, bindSymbols
   , liftIO, runErrorT
   , showValPretty, showBindings
+  , readFrames
   ) where
 
 import Control.Arrow ((>>>))
@@ -25,6 +26,7 @@ data LispVal = Number Integer
              | Port Handle
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 
              | IOFunc ([LispVal] -> IOThrowsError LispVal)
+             | BuiltInFunc (Env -> [LispVal] -> IOThrowsError LispVal)
              | Func {params :: [String],  vararg :: (Maybe String), body :: [LispVal], closure :: Env} 
              | Macro {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
 
@@ -71,8 +73,9 @@ showVal (DottedList _init _last) = "(" ++ unwordsList _init ++ " . " ++ show _la
 showVal (Port _) = "<IO port>"
 showVal (PrimitiveFunc _) = "<primitive>"
 showVal (IOFunc _) = "<IO primitive>"
+showVal (BuiltInFunc _) = "<subr>"
 showVal (Func params vararg body closure) = "<closure>"
-showVal (Macro params vararg body closure) =  "<macro>"
+showVal (Macro params vararg body closure) = "<macro>"
 unwordsList = unwords . map showVal
 
 showValPretty :: LispVal -> String
@@ -87,6 +90,7 @@ showValPretty (Port h) = "<IO port: " ++ extractPath (show h) ++ ">"
   where extractPath str = init . drop 9 $ str
 showValPretty val@(PrimitiveFunc _) = showVal val
 showValPretty val@(IOFunc _) = showVal val
+showValPretty val@(BuiltInFunc _) = showVal val
 showValPretty (Func params vararg body closure) = 
   "<closure: (lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")>"
 showValPretty (Macro params vararg body closure) =  
@@ -161,7 +165,7 @@ bindSymbols envRef sym sym' = do
     Nothing -> throwError $ UnboundVar "Getting an unbound variable: " sym'
 
 lookupVar :: Env -> String -> IO (Maybe Cell)
-lookupVar envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> return)
+lookupVar envRef sym = readFrames envRef >>= (concat >>> lookup sym >>> return)
 
 newCell  :: LispVal -> IO Cell
 newFrame :: IO Frame
@@ -184,7 +188,7 @@ getCurrentFrame envRef = readIORef envRef >>= return . head
 
 isBound        :: Env   -> String -> IO Bool
 isBoundInFrame :: Frame -> String -> IO Bool
-isBound envRef sym = readIORef envRef >>= mapM readIORef >>= (concat >>> lookup sym >>> maybe False (const True) >>> return)
+isBound envRef sym = readFrames envRef >>= (concat >>> lookup sym >>> maybe False (const True) >>> return)
 isBoundInFrame frameRef sym = readIORef frameRef >>= (lookup sym >>> maybe False (const True) >>> return)
 
 bindVars :: [(String, LispVal)] -> Env -> IO Env
@@ -195,10 +199,12 @@ bindVars bindings envRef = do
 
 showBindings :: Env -> IO String
 showBindings envRef = do 
-  bindings <- readIORef envRef >>= mapM readIORef >>= mapM (mapM (\(sym,cell) -> readIORef cell >>= (\val -> return (Symbol sym,val))))
+  bindings <- readFrames envRef >>= mapM (mapM (\(sym,cell) -> readIORef cell >>= (\val -> return (Symbol sym,val))))
   return $ "[\n" ++ showBindings (reverse bindings) ++ "]"
   where showBindings bindings = case bindings of 
           (frame:[]) -> showFrame frame ++ "\n"
           (frame:frames) -> showFrame frame ++ ",\n" ++ showBindings frames
           [] -> ""
         showFrame frame = " " ++ show frame
+        
+readFrames envRef = readIORef envRef >>= mapM readIORef
