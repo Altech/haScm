@@ -47,7 +47,7 @@
    (define (reverse-iter ls a)
      (if (null? ls)
 	 a
-	 (reversei (cdr ls) (cons (car ls) a))))
+	 (reverse-iter (cdr ls) (cons (car ls) a))))
    (define (list-ref ls k)
      (if (= k 0)
 	 (car ls)
@@ -93,10 +93,10 @@
    (define (odd?  x) (if (= x 0) #f (even? (- x 1))))
    
    (export
-      min max
-      abs
-      zero? positive? negative?
-      even? odd?)))
+     min max
+     abs
+     zero? positive? negative?
+     even? odd?)))
 
 (display "[complete]\n")
 (display "load io library...")
