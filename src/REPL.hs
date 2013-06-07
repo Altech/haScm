@@ -1,8 +1,8 @@
 module Main where
 import Scheme.Evaluator
 import Scheme.Parser (readExpr)
-import Scheme.Internal (liftThrows)
-import System.Console.Readline (readline, addHistory)
+import Scheme.Internal (liftThrows, readFrames)
+import System.Console.Readline (readline, addHistory, setCompletionEntryFunction)
 import System.Directory (getHomeDirectory, doesFileExist)
 import System.Environment (getArgs)
 import System.IO (openFile, hClose, IOMode(ReadMode), hGetContents)
@@ -46,6 +46,12 @@ readHistory = do
   where
     addHistories contents = mapM addHistory (reverse . take 100 . reverse $ lines contents)
 
+setCompleteFunc :: Env -> IO Env
+setCompleteFunc env = setCompletionEntryFunction (Just f) >> return env
+  where 
+    f s = readFrames env >>= (concat >>> map fst >>> (specialFormsSymbols++) >>> filter (compareFstN (length s) s) >>> return)
+    compareFstN n a b = take n a == take n b
+
 defModuleSystem :: Env -> IO Env
 defModuleSystem env = mapM (evalString env) [code1, code2] >> return env
   where code1 = "(define-macro (module . definitions) (define (map f ls) (if (null? ls) '() (cons (f (car ls)) (map f (cdr ls))))) `((lambda () (define module-exported-names '()) (define-macro (export . names) `(begin ,@(map (lambda (name) `(set! module-exported-names (cons (cons ',name ,name) module-exported-names))) names))) ,@definitions module-exported-names)))"
@@ -77,7 +83,7 @@ runOne :: [String] -> IO ()
 runOne args = undefined
 
 runRepl :: IO ()
-runRepl = readHistory >> defaultEnv >>= defModuleSystem >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
+runRepl = readHistory >> defaultEnv >>= setCompleteFunc >>= defModuleSystem >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
 
 -- main
 main :: IO ()
