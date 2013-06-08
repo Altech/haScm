@@ -53,7 +53,7 @@
 	 (car ls)
 	 (list-ref (cdr ls) (- k 1))))
    (define-macro (associate-expander name compare-function)
-     `(lambda (assq o alist)
+     `(lambda (o alist)
 	(if (null? alist)
 	    #f
 	    (if (,compare-function o (caar alist))
@@ -66,12 +66,14 @@
    (export
      length last append reverse
      list-ref
+     assoc accv assq
      caar cadr cdar cddr
      caaar caadr cadar caddr cdaar cdadr cddar cdddr
      caaaar caaadr caadar caaddr cadaar cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr)))
 
 (display "[complete]\n")
 (display "load num library...")
+
 
 
 (define num-module
