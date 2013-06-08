@@ -1,5 +1,3 @@
-(display "load core library...")
-
 (define core-module
   (module
    
@@ -113,5 +111,3 @@
      cond or and
      member memv memq
      list set-car! set-cdr! map for-each)))
-
-(display "[complete]\n")

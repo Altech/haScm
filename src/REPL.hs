@@ -54,9 +54,9 @@ setCompleteFunc env = setCompletionEntryFunction (Just f) >> return env
 
 defModuleSystem :: Env -> IO Env
 defModuleSystem env = mapM (evalString env) [code1, code2] >> return env
-  where code1 = "(define-macro (module . definitions) (define (map f ls) (if (null? ls) '() (cons (f (car ls)) (map f (cdr ls))))) `((lambda () (define module-exported-names '()) (define-macro (export . names) `(begin ,@(map (lambda (name) `(set! module-exported-names (cons (cons ',name ,name) module-exported-names))) names))) ,@definitions module-exported-names)))"
+  where code1 = "(define-macro (module . definitions) `((lambda () (define (mapmap f ls) (if (null? ls) '() (cons (f (car ls)) (mapmap f (cdr ls))))) (define (revrev ls) (define (revrevi ls a) (if (null? ls) a (revrevi (cdr ls) (cons (car ls) a)))) (revrevi ls '())) (define module-exported-names '()) (define-macro (export . names) `(begin ,@(mapmap (lambda (name) `(set! module-exported-names (cons (cons ',name ,name) module-exported-names))) names))) ,@definitions (revrev module-exported-names))))"
         code2 = "(define-macro (import module) `(define-all ,module))"
-
+        
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = readline prompt
 

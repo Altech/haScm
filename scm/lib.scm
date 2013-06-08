@@ -101,8 +101,11 @@
 (display "[complete]\n")
 (display "load io library...")
 
-(define io-module
+(define io-module  
   (module
+   (require 'core)
+   (import core-module)
+   
    (define (call-with-input-file file proc)
      (let ((port (open-input-file file)))
        (proc port)
