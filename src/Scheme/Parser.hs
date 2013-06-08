@@ -85,7 +85,7 @@ parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
 parseList = try parseNormalList <|> try parseDottedList <|> parseAbbreviation
   where parseNormalList = liftM List $ do 
           char '(' 
-          values <- sepBy parseDatum spaces
+          values <- skipMany spaces >> sepEndBy parseDatum spaces
           char ')'
           return values
         parseDottedList = do
@@ -108,9 +108,10 @@ parseList = try parseNormalList <|> try parseDottedList <|> parseAbbreviation
                    ("," , "unquote")]
         lookupAbbrev abbrev = case lookup abbrev abbrevs of Just sym -> sym
         
-spaces = try $ (comment <|> spaces') >> skipMany (comment <|> spaces')
-  where
-    spaces' = try space >> skipMany space
+spaces = try $ spaces' >> skipMany spaces'
+spaces' = comment <|> spaces''
+  where 
+    spaces'' = try space >> skipMany space
     comment = char ';' >> many (noneOf "\n") >> return ()
 
 -- For debug
