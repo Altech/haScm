@@ -91,6 +91,9 @@
    (define memv (mem-expander memv eqv?))
    (define memq (mem-expander memq eq?))
 
+   ;; neq?
+   (define-macro (neq? a b) `(not (eq? ,a ,b)))
+
    ;; sub-routines
    (define (length ls)
      (if (null? ls)
@@ -110,4 +113,5 @@
      let let* letrec
      cond or and
      member memv memq
+     neq?
      list set-car! set-cdr! map for-each)))
