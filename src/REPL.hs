@@ -1,17 +1,17 @@
 module Main where
+
 import Scheme.Evaluator
-import Scheme.Parser (readExpr)
 import Scheme.Internal (liftThrows, readFrames)
+
+import Scheme.Parser (readExpr)
 import System.Console.Readline (readline, addHistory, setCompletionEntryFunction)
-import System.Directory (getHomeDirectory, doesFileExist)
+import System.Directory (getHomeDirectory, doesFileExist, setCurrentDirectory)
 import System.Environment (getArgs)
 import System.IO (openFile, hClose, IOMode(ReadMode), hGetContents)
+import System.Process (system)
 
-import Control.Monad (liftM)
 import Control.Arrow ((>>>))
 import Control.Applicative ((<$>))
-
-import Text.Trifecta (Result(Success, Failure))
 
 -- REPL
 getHistoryFilePath :: IO String
@@ -70,6 +70,7 @@ until_ prompt action = do
   result <- prompt
   case result of 
     Nothing -> putChar '\n' >> return ()
+    Just ('.':cmd) -> processCmd cmd >> until_ prompt action 
     Just "exit" -> return ()
     Just "quit" -> return ()
     Just code -> do 
@@ -78,6 +79,10 @@ until_ prompt action = do
       addHistory code
       action code
       until_ prompt action 
+
+processCmd cmd = case cmd of
+  'c':'d':' ':dir -> setCurrentDirectory dir
+  _ -> system cmd >> return ()
 
 runOne :: [String] -> IO ()
 runOne args = undefined
