@@ -117,8 +117,15 @@ lambda env (DottedList params varargs : body) = makeVarargsFunc varargs env para
 begin env stmts = mapM (eval env) stmts >>= return . last -- [TODO] case : length list = 0
 
 if' env [pred, conseq, alt] = do
-  Bool bool <- eval env pred
-  eval env (if bool then conseq else alt)
+  val <- eval env pred
+  case val of
+    Bool b -> eval env (if b then conseq else alt)
+    notBool -> throwError $ TypeMismatch "boolean" notBool
+if' env [pred, conseq] = do
+  val <- eval env pred
+  case val of
+    Bool b -> eval env (if b then conseq else Bool False)
+    notBool -> throwError $ TypeMismatch "boolean" notBool
 
 eq env [v1, v2] = eq' env v1 v2
   where
