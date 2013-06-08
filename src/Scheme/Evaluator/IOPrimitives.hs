@@ -40,6 +40,8 @@ load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
 readAll [String filename] = liftM List $ load filename
 
 compPort :: Handle -> ([LispVal] -> IOThrowsError LispVal) -> ([LispVal] -> IOThrowsError LispVal)
-compPort handle func = \args -> case last args of Port _ -> func args; _ -> func (args ++ [Port handle])
+compPort handle func = \args -> if length args > 0 
+                                  then case last args of Port _ -> func args; _ -> func (args ++ [Port handle])
+                                  else func (args ++ [Port handle])
 compInputPort = compPort stdin
 compOutputPort = compPort stdout
