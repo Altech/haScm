@@ -44,7 +44,7 @@ readHistory = do
       hClose h
     else return ()
   where
-    addHistories contents = mapM addHistory (reverse . take 100 . reverse $ lines contents)
+    addHistories contents = mapM addHistory (reverse . take 300 . reverse $ lines contents)
 
 setCompleteFunc :: Env -> IO Env
 setCompleteFunc env = setCompletionEntryFunction (Just f) >> return env
