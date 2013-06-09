@@ -111,7 +111,7 @@
    (export
      macroexpand
      let let* letrec
-     cond or and
+     cond else or and
      member memv memq
      neq?
      list set-car! set-cdr! map for-each)))
