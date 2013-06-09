@@ -51,7 +51,9 @@ primitives = [
   -- List
   ("cons",cons),
   ("car",car),
-  ("cdr",cdr)]
+  ("cdr",cdr),
+  -- etc
+  ("undefined",\[] -> return Undefined)]
   where checkNumArg1M vals = case vals of [val] -> return val; _ -> throwError (NumArgs 1 vals)
         checkNumArg1 p vals = case vals of [val] -> return (p val); _ -> throwError (NumArgs 1 vals)
         checkNumArg2 p vals = case vals of [val1,val2] -> return (p val1 val2); _ -> throwError (NumArgs 2 vals)
