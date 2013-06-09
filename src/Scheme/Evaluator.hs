@@ -33,6 +33,8 @@ eval env   (Symbol sym)  = getVar env sym
 eval env   (List form) | isSpecialForm form = evalSpecialForm' env form
 eval env   (List (hd:tl)) = do
   val <- eval env hd
+  Bool isDebug <- eval env (Symbol "is-debug")
+  if isDebug then liftIO $ putStrLn (show hd) else return ()
   case val of
     macroVal@(Macro _ _ _ _) -> do
       expand macroVal tl >>= eval env
@@ -99,7 +101,7 @@ set env [Symbol sym, val] = eval env val >>= setVar env sym
 quote ___ [form] = return form
 
 quasiquote env [form] = unquote form 1
-  where 
+  where -- [TODO] support dotted list
     unquote (List [Symbol "unquote", form'])          1         = eval env form' 
     unquote (List [Symbol "unquote", form'])          n | n > 1 = (\form'' -> List [Symbol "unquote", form''])          <$> unquote form' (n-1)
     unquote (List [Symbol "unquote-splicing", form']) n | n > 1 = (\form'' -> List [Symbol "unquote-splicing", form'']) <$> unquote form' (n-1)
@@ -119,8 +121,10 @@ lambda env (DottedList params varargs : body) = makeVarargsFunc varargs env para
 begin env stmts = mapM (eval env) stmts >>= return . last -- [TODO] case : length list = 0
 
 if' env [pred, conseq, alt] = do
-  Bool bool <- eval env pred
-  eval env (if bool then conseq else alt)
+  maybeBool <- eval env pred
+  case maybeBool of
+    Bool b -> eval env (if b then conseq else alt)
+    notBool -> throwError $ TypeMismatch "boolean" notBool
 
 eq env [v1, v2] = eq' env v1 v2
   where
@@ -189,4 +193,4 @@ symbolBound env [Symbol sym] = liftIO $ Bool <$> isBound env sym
 
 --- built-in variables
 builtInVariables :: [(String, LispVal)]
-builtInVariables = [("path", List [String "/usr/lib/hascm/scm"])]
+builtInVariables = [("path", List [String "/usr/lib/hascm/scm"]),("is-debug", Bool False)]

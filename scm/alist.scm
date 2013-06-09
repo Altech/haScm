@@ -31,6 +31,8 @@
    (define (alist-merge a1 a2)
      (let ((keys (alist-keys a1)))
        (append a1 (filter (lambda (pair) (equal? #f (member (car pair) keys))) a2))))
+
+   (define alist-remove-duplicated-keys 1)
    
    (export
     alist-keys alist-values alist-exist? alist-drop alist-set! alist-merge)))
