@@ -33,6 +33,50 @@
       '()
       (cons v (replicate (- n 1) v))))
 
+(define (remove-dup ls e)
+  (if (null? ls)
+      '()
+      (let ((l (filter (lambda (x) (not (equal? x e))) ls)))
+	(cons (car l) (remove-dup (cdr l) (car l))))))
+
+(define (merge xs ys f)
+  (cond
+   ((null? xs) ys)
+   ((null? ys) xs)
+   (else (if (f (car xs) (car ys))
+	     (cons (car xs) (merge (cdr xs) ys f))
+	     (cons (car ys) (merge xs (cdr ys) f))))))
+
+(define (split xs)
+  (cond
+   ((null? xs) (cons '() '()))
+   ((= 1 (length xs)) (cons xs '()))
+   (else (let ((ls (split (cddr xs))))
+	   (cons (cons (car xs) (car ls)) (cons (cadr xs) (cdr ls)))))))
+
+(define (msort xs f)
+  (cond
+   ((null? xs) '())
+   ((= 1 (length xs)) xs)
+   (else (let ((splited (split xs)))
+	   (merge (msort (car splited) f) (msort (cdr splited) f) f)))))
+
+(define (insert x lst f)
+  (if (null? lst)
+      (list x)
+      (let ((y (car lst))
+            (ys (cdr lst)))
+        (if (f x y)
+            (cons x lst)
+            (cons y (insert x ys f))))))
+ 
+(define (isort lst f)
+  (if (null? lst)
+      '()
+      (insert (car lst)
+              (isort (cdr lst) f)
+	      f)))
+ 
 (define (id x) x)
 
 (define (process-slots slots)
@@ -68,7 +112,16 @@
      (cons 'allocations allocations) ;; [TODO]
       )))
 
-(define (parents obj) (assoc-default 'parents obj))
+(define (parents obj)
+  (if (pair? obj)
+   (assoc-default 'parents obj)
+   (cond
+    ((string? obj) 'string)
+    ((number? obj) 'number)
+    ((list? obj) 'list)
+    ((boolean? obj) 'boolean)
+    (else #f)
+    )))
 
 (define (accessor-name-to-getter-name accessor-name)
   (string->symbol (string-append "set-" (symbol->string accessor-name))))
@@ -76,7 +129,8 @@
 (define-macro (defclass class-name ancestors slots)
   `(begin
     (define ,class-name (let ((class-slots '()) (instance-slots '()))
-			   (alist-merge (list (cons 'ansesorts ',ancestors))
+			   (alist-merge (list (cons 'ansesorts ',ancestors)
+					      (cons 'parents ',ancestors))
 					(list (cons 'slots (process-slots ',slots))))))
     (define-all (map
 		  (lambda (pair)
@@ -98,27 +152,29 @@
 		 (assoc-default 'accessors (process-slots ',slots))))
     ))
 
-"OK"
-
 (define (class-init-forms class-name)
-  (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
-    (assoc-default 'init-forms slots)
-    ))
+  (apply append (map (lambda (class-name)
+		       (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
+			 (assoc-default 'init-forms slots)))
+		     (reverse (get-ancestors class-name))))) ;; reverse is used in defmethod(create init-forms).
 
 (define (class-init-args class-name)
-  (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
-    (assoc-default 'init-args slots)
-    ))
+  (apply append (map (lambda (class-name)
+		       (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
+			 (assoc-default 'init-args slots)))
+		     (reverse (get-ancestors class-name)))))
 
 (define (class-accessors class-name)
-  (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
-    (assoc-default 'accessors slots)
-    ))
+  (apply append (map (lambda (class-name)
+		       (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
+			 (assoc-default 'accessors slots)))
+		     (reverse (get-ancestors class-name)))))
 
 (define (class-readers class-name)
-  (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
-    (assoc-default 'readers slots)
-    ))
+  (apply append (map (lambda (class-name)
+		       (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
+			   (assoc-default 'readers slots)))
+		     (reverse (get-ancestors class-name)))))
 
 (define (make-instance class-name . args)
   (let ((props '()))
@@ -131,39 +187,42 @@
     (for-each  ; set values by params
      (lambda (pair)
        (let ((key (car pair)) (value (cdr pair)))
-	 (if (alist-exist? key (class-init-args class-name))
-	     (alist-set! props key value)
-	     #f)))
+    	 (if (alist-exist? key (class-init-args class-name))
+    	     (alist-set! props key value)
+    	     #f)))
      args)
-    (alist-set! props 'parents class-name)
-    ; set children? to parent class
-    ; set accessor and reader
-    (write props)
+    
+    (alist-set! props 'parents class-name) ; set parents 
 
-    (letrec ((obj
-	      (append
-	       (list
-		(cons 'parents class-name))
-	       (map
-		(lambda (pair)
-		  (let ((slot-name (car pair)) (reader-name (cdr pair)))
-		    (cons reader-name (lambda () (assoc-default slot-name props)))))
-		(class-readers class-name))
-	       (map
-		(lambda (pair)
-		  (let ((slot-name (car pair)) (accessor-getter-name (cdr pair)))
-		    (cons accessor-getter-name (lambda () (assoc-default slot-name props)))))
-		(class-accessors class-name))
-	       (map
-		(lambda (pair)
-		  (let* ((slot-name (car pair)) (accessor-setter-name (accessor-name-to-getter-name (cdr pair))))
-		    (cons accessor-setter-name (lambda (val) (alist-set! props slot-name val) obj))))
-		(class-accessors class-name)))))
+    ; set children to parent class
+    
+    (write props)
+    (write (get-ancestors class-name))
+    
+    (letrec ((obj ; set accessor and reader
+	      (apply append (map
+		   (lambda (class-name)
+		     (append
+		      (list
+		       (cons 'parents class-name))
+		      (map
+		       (lambda (pair)
+			 (let ((slot-name (car pair)) (reader-name (cdr pair)))
+			   (cons reader-name (lambda () (assoc-default slot-name props)))))
+		       (class-readers class-name))
+		      (map
+		       (lambda (pair)
+			 (let ((slot-name (car pair)) (accessor-getter-name (cdr pair)))
+			   (cons accessor-getter-name (lambda () (assoc-default slot-name props)))))
+		       (class-accessors class-name))
+		      (map
+		       (lambda (pair)
+			 (let* ((slot-name (car pair)) (accessor-setter-name (accessor-name-to-getter-name (cdr pair))))
+			   (cons accessor-setter-name (lambda (val) (alist-set! props slot-name val) obj))))
+		       (class-accessors class-name))))
+		   (get-ancestors class-name)))))
       obj)))
 
-(write "ok")
-
-;; (defmethod area ((c circle)) (* pi (expt (circle-radius c) 2)))
 (define (method-to-cand method-name)
   (string->symbol (string-append (symbol->string method-name) "-candidates")))
 
@@ -176,9 +235,7 @@
 	     (write "Error: symbol is alreadly used.")
 	     )
 	 (define ,(method-to-cand method-name) (list 'clos-method (cons ',args ',body))))
-     (define ,method-name (lambda (a . args)
-			    (write "test")
-			    (dispatch (eval (method-to-cand ',method-name)) (cons a args))))))
+     (define ,method-name (lambda (a . args) (dispatch (eval (method-to-cand ',method-name)) (cons a args))))))
 
 (define (method? o)
   (and (not (null? o)) (equal? 'clos-method (car o))))
@@ -223,13 +280,26 @@
 	#t
 	)))
 
+
+(define (member? o ls) (not (eq? #f (member o ls))))
+
 (define (is-descendant? arg type)
-  (write arg)
-  (write type)
-  (rget ~)
-  )
+  (member? type (get-ancestors (parents arg))))
 
+(define (get-all class-name)
+  (append (list class-name) (if (null? (map get-all (parents (eval class-name))))
+				'()
+				(apply append (reverse (map get-all (parents (eval class-name))))))))
 
+(define (get-ancestors class-name)
+  (isort (remove-dup (get-all class-name) (undefined))
+  	 (lambda (cn1 cn2) (member? cn2 (get-all cn1)))))
+
+(defclass string () ())
+(defclass number () ())
+(defclass boolean () ())
+
+(defclass object () ((color (initform . 1))))
 
 ;; (defclass circle ()
 ;;   ((radius (accessor . circle-radius))
@@ -240,7 +310,7 @@
 ;; (defclass circle ()
 ;;   ((radius (accessor . circle-radius) (initarg . radius))
 ;;    (center (accessor . circle-center) (initarg . center))))
-;; (defclass circle () ((radius (accessor . circle-radius) (initarg . radius)) (center (accessor . circle-center) (initarg . center))))
+(defclass circle (object) ((radius (accessor . circle-radius) (initarg . radius)) (center (accessor . circle-center) (initarg . center))))
 
 
 ;; (defclass shape ()
@@ -248,7 +318,7 @@
 ;;    (visible (accessor . shape-visible)
 ;; 	    (initarg . visible)
 ;; 	    (initform . #t))))
-;; (defclass shape () ((color (reader . shape-color) (initarg . color)) (visible (accessor . shape-visible) (initarg . visible) (initform . #t))))
+(defclass shape (object) ((color (accessor . shape-color) (initarg . color) (initform . 'black)) (visible (accessor . shape-visible) (initarg . visible) (initform . #t))))
 
 
 ;; (defclass my-circle (circle)
@@ -258,8 +328,10 @@
 ;; (defclass mymy-circle (circle)
 ;;   ((zokusei (accessor . mymy-circle-zokusei))))
 
-;; (defclass screen-circle (circle shape)
-;;   nil)
+(defclass screen-circle (circle shape)
+  ((color (initform . 'purple))))
+
+"ok"
 
 ;; (make-instance 'circle `(radius . 2) `(center (0 . 0)))
 
