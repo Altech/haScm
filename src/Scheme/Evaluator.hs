@@ -150,7 +150,10 @@ eval' env [form] = eval env form
 apply' ___ [func, List args] = apply func args
 apply' ___ (func:args) = apply func args
 
-defineAll env [List val] = mapM (\(DottedList [sym] val) -> define env [sym, List [Symbol "quote", val]]) val >> return (Bool True) -- [TODO] pattern-match all
+defineAll env [List val] = mapM def val >> return (Bool True)
+  where 
+    def (DottedList [sym] val) = define env [sym, List [Symbol "quote", val]]
+    def (List (sym:vals)) = define env [sym, List [Symbol "quote", List vals]]
 
 macroExpand1 env [form] = macroExpand env form
 macroExpand env form = do
