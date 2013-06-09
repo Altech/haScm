@@ -32,8 +32,7 @@
 	       ((equal? keyword 'initform)   (add-to-list init-forms (cons slot-name param)))
 	       ((equal? keyword 'accessor)   (add-to-list accessors (cons slot-name param)))
 	       ((equal? keyword 'reader)     (add-to-list readers (cons slot-name param)))
-	       ((equal? keyword 'allocation) (add-to-list allocations slot-name))
-	       )
+	       ((equal? keyword 'allocation) (add-to-list allocations slot-name)))
 	      ))
 	  param-alist
 	  )
@@ -58,6 +57,12 @@
 			   (alist-merge (list (cons 'ansesorts ',ancestors))
 					(list (cons 'slots (process-slots ',slots))))
 			   ))
+    (define-all (map
+		  (lambda (pair)
+		    (let ((slot-name (car pair)) (reader-name (cdr pair)))
+		      (cons reader-name
+			    (lambda (obj) ((assoc-default reader-name obj))))))
+		  (assoc-default 'readers (process-slots ',slots))))
     (define-all (map
 		  (lambda (pair)
 		    (let ((slot-name (car pair)) (accessor-getter-name (cdr pair)))
@@ -89,6 +94,11 @@
     (assoc-default 'accessors slots)
     ))
 
+(define (class-readers class-name)
+  (let* ((class (eval class-name)) (slots (assoc-default 'slots class)))
+    (assoc-default 'readers slots)
+    ))
+
 (define (make-instance class-name . args)
   (let ((props '()))
     (for-each  ; set values by default
@@ -113,6 +123,11 @@
 	      (append
 	       (list
 		(cons 'parents class-name))
+	       (map
+		(lambda (pair)
+		  (let ((slot-name (car pair)) (reader-name (cdr pair)))
+		    (cons reader-name (lambda () (assoc-default slot-name props)))))
+		(class-readers class-name))
 	       (map
 		(lambda (pair)
 		  (let ((slot-name (car pair)) (accessor-getter-name (cdr pair)))
@@ -144,7 +159,7 @@
 ;;    (visible (accessor . shape-visible)
 ;; 	    (initarg . visible)
 ;; 	    (initform . #t))))
-;; (defclass shape () ((color (accessor . shape-color) (initarg . color)) (visible (accessor . shape-visible) (initarg . visible) (initform . #t))))
+;; (defclass shape () ((color (reader . shape-color) (initarg . color)) (visible (accessor . shape-visible) (initarg . visible) (initform . #t))))
 
 
 ;; (defclass my-circle (circle)
