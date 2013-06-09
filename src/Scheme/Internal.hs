@@ -29,6 +29,7 @@ data LispVal = Number Integer
              | BuiltInFunc (Env -> [LispVal] -> IOThrowsError LispVal)
              | Func {params :: [String],  vararg :: (Maybe String), body :: [LispVal], closure :: Env} 
              | Macro {params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
+             | Undefined
 
 instance Eq LispVal where (==) = eqVal
 instance Show LispVal where show = showVal
@@ -76,6 +77,7 @@ showVal (IOFunc _) = "<IO primitive>"
 showVal (BuiltInFunc _) = "<subr>"
 showVal (Func params vararg body closure) = "<closure>"
 showVal (Macro params vararg body closure) = "<macro>"
+showVal Undefined = ""
 unwordsList = unwords . map showVal
 
 showValPretty :: LispVal -> String
@@ -95,6 +97,7 @@ showValPretty (Func params vararg body closure) =
   "<closure: (lambda (" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")>"
 showValPretty (Macro params vararg body closure) =  
   "<macro: (define-macro (_______" ++ unwords params ++ (case vararg of Nothing -> ""; Just arg -> " . " ++ arg) ++ ") " ++ unwordsList body ++ ")>"
+showValPretty Undefined = "<undefined>"
 unwordsListPretry = unwords . map showValPretty
   
 showError :: LispError -> String

@@ -49,7 +49,9 @@ apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args = 
   if num params /= num args && varargs == Nothing
   then throwError $ NumArgs (num params) args
-  else (liftIO $ bindVars (zip params args) closure) >>= bindVarArgs varargs >>= evalBody
+  else do
+    tempEnv <- liftIO $ addFrame closure
+    (liftIO $ bindVars (zip params args) tempEnv) >>= bindVarArgs varargs >>= evalBody
   where 
     remainingArgs = drop (length params) args
     num = toInteger . length
@@ -150,7 +152,10 @@ eval' env [form] = eval env form
 apply' ___ [func, List args] = apply func args
 apply' ___ (func:args) = apply func args
 
-defineAll env [List val] = mapM (\(DottedList [sym] val) -> define env [sym, List [Symbol "quote", val]]) val >> return (Bool True) -- [TODO] pattern-match all
+defineAll env [List val] = mapM def val >> return (Bool True)
+  where 
+    def (DottedList [sym] val) = define env [sym, List [Symbol "quote", val]]
+    def (List (sym:vals)) = define env [sym, List [Symbol "quote", List vals]]
 
 macroExpand1 env [form] = macroExpand env form
 macroExpand env form = do
