@@ -49,7 +49,9 @@ apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args = 
   if num params /= num args && varargs == Nothing
   then throwError $ NumArgs (num params) args
-  else (liftIO $ bindVars (zip params args) closure) >>= bindVarArgs varargs >>= evalBody
+  else do
+    tempEnv <- liftIO $ addFrame closure
+    (liftIO $ bindVars (zip params args) tempEnv) >>= bindVarArgs varargs >>= evalBody
   where 
     remainingArgs = drop (length params) args
     num = toInteger . length
