@@ -15,6 +15,26 @@
 
 ;; (define (process-slots slots) )
 
+(define (filter f x)
+  (if (null? x)
+      x
+      (if (f (car x))
+	  (cons (car x) (filter f (cdr x)))
+	  (filter f (cdr x)))))
+
+(define (zip list1 list2)
+  (cond
+   ((null? list1) '())
+   ((null? list2) '()) 
+   (else (cons (cons (car list1) (car list2)) (zip (cdr list1) (cdr list2))))))
+
+(define (replicate n v)
+  (if (eq? n 0)
+      '()
+      (cons v (replicate (- n 1) v))))
+
+(define (id x) x)
+
 (define (process-slots slots)
   ;; sample argments
   ;; ((radius (accessor . circle-radius) (initarg . radius))
@@ -48,6 +68,8 @@
      (cons 'allocations allocations) ;; [TODO]
       )))
 
+(define (parents obj) (assoc-default 'parents obj))
+
 (define (accessor-name-to-getter-name accessor-name)
   (string->symbol (string-append "set-" (symbol->string accessor-name))))
 
@@ -55,8 +77,7 @@
   `(begin
     (define ,class-name (let ((class-slots '()) (instance-slots '()))
 			   (alist-merge (list (cons 'ansesorts ',ancestors))
-					(list (cons 'slots (process-slots ',slots))))
-			   ))
+					(list (cons 'slots (process-slots ',slots))))))
     (define-all (map
 		  (lambda (pair)
 		    (let ((slot-name (car pair)) (reader-name (cdr pair)))
@@ -142,6 +163,74 @@
 
 (write "ok")
 
+;; (defmethod area ((c circle)) (* pi (expt (circle-radius c) 2)))
+(define (method-to-cand method-name)
+  (string->symbol (string-append (symbol->string method-name) "-candidates")))
+
+(define-macro (defmethod method-name args . body)
+  `(begin
+     (if (symbol-bound? ',(method-to-cand method-name)) ; [TODO] check argument pattern. / enclose method-candidates.
+	 (if (method? ,(method-to-cand method-name))
+	     (let ((method (cdr ,(method-to-cand method-name))))
+	       (set! ,(method-to-cand method-name)  (cons 'clos-method (cons (cons ',args ',body) method))))
+	     (write "Error: symbol is alreadly used.")
+	     )
+	 (define ,(method-to-cand method-name) (list 'clos-method (cons ',args ',body))))
+     (define ,method-name (lambda (a . args)
+			    (write "test")
+			    (dispatch (eval (method-to-cand ',method-name)) (cons a args))))))
+
+(define (method? o)
+  (and (not (null? o)) (equal? 'clos-method (car o))))
+
+(define (remove-type-constraint param)
+  (if (pair? param) (car param) param))
+
+(define (dispatch method args)
+  (let ((method-candidates (cdr method)))
+    ;; (write method-candidates)
+    ;; (write args)
+    (if (= (length args) (length (caar method-candidates))) ; number of argument is constant.
+	(let ((dispatchables (filter (dispatchable? args) method-candidates)))
+	  (if (null? dispatchables)
+	      (write "Error: wrong types of arugments.")
+	      (let ((params (caar dispatchables)) (body (cdar dispatchables)))
+		`(lambda (,@(map remove-type-constraint params)) ,@body)
+		(apply (eval `(lambda (,@(map remove-type-constraint params)) ,@body)) args)
+		)))
+	(write "Error: invalid number of arguments.")
+	)))
+
+(define (for-all? f ls)
+  (if (null? ls)
+      #t
+      (if (f (car ls))
+	  (for-all? f (cdr ls))
+	  #f)))
+
+(define (dispatchable? args)
+  (lambda (method-candidate) ;; e.g. ((a b) (+ a b))
+    (let ((meth-params (car method-candidate)) (meth-body (cdr method-candidate)))
+      (write (map check-type-of-argument (zip args meth-params)))
+      (for-all?
+       check-type-of-argument
+       (zip args meth-params)))))
+
+(define (check-type-of-argument pair) ;; e.g. (1 . a) / (1 . (s animal))
+  (let ((arg (car pair)) (meth-param (cdr pair)))
+    (if (pair? meth-param) ;; e.g. (s animal)
+	(is-descendant? arg (cadr meth-param))
+	#t
+	)))
+
+(define (is-descendant? arg type)
+  (write arg)
+  (write type)
+  (rget ~)
+  )
+
+
+
 ;; (defclass circle ()
 ;;   ((radius (accessor . circle-radius))
 ;;    (center (accessor . circle-center))))
@@ -173,3 +262,20 @@
 ;;   nil)
 
 ;; (make-instance 'circle `(radius . 2) `(center (0 . 0)))
+
+;; (defclass circle () ((radius (accessor . circle-radius)) (center (accessor . circle-center))))
+
+;; (defmethod area ((c circle))
+;;   (* pi (expt (circle-radius c) 2)))
+;; (defmethod area ((c circle)) (* pi (expt (circle-radius c) 2)))
+
+;; (defmethod move ((c circle) dx dy)
+;;   (incf (car (circle-center c)) dx)
+;;   (incf (cdr (circle-center c)) dy)
+;;   (circle-center c))
+
+;; (defclass circle ()
+;; ((radius :accessor circle-radius)
+;; (center :accessor circle-center)))
+
+;; (defmethod area ((c unit-circle)) pi)
