@@ -145,7 +145,8 @@ builtInFunctions = [("eval",          eval'),
                     ("macroexpand-1", macroExpand1),
                     ("require",       require),
                     ("bindings",      bindings),
-                    ("load",          load)]
+                    ("load",          load),
+                    ("symbol-bound?", symbolBound)]
 
 eval' env [form] = eval env form
 
@@ -183,6 +184,8 @@ require env [Symbol name] = eval env (Symbol "path") >>= searchPath name >>= (\p
 load env [String filename] = ifExist filename >>= loadFile >>= liftM last . mapM (eval env)
   where loadFile filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
         ifExist  filename = liftIO (doesFileExist filename) >>= (\b -> if b then return filename else throwError $ Default ("The file does not exist: " ++ filename))
+
+symbolBound env [Symbol sym] = liftIO $ Bool <$> isBound env sym
 
 --- built-in variables
 builtInVariables :: [(String, LispVal)]
