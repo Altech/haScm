@@ -69,7 +69,7 @@ parseString' = do
   where
     parseStringEscapedUnicode = liftM (chr . read) $ char '\\' >> count 4 digit
     parseStringEscapedASCII = liftM convert $ char '\\' >> noneOf ""
-    controlChars =  [('n','\n'),('t','\t'),('r','\r'),('0','\0')]
+    controlChars =  [('n','\n'),('t','\t'),('r','\r'),('0','\0'),('e','\^[')]
     convert c = maybe c id (lookup c controlChars) 
     
 parseSymbol = liftM Symbol $ peculiarIdentifier <|> do
