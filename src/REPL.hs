@@ -70,15 +70,19 @@ until_ prompt action = do
   result <- prompt
   case result of 
     Nothing -> putChar '\n' >> return ()
-    Just ('.':cmd) -> processCmd cmd >> until_ prompt action 
+    Just ('.':cmd) -> processCmd cmd >> syncHitory ('.':cmd) >> until_ prompt action 
     Just "exit" -> return ()
     Just "quit" -> return ()
     Just code -> do 
+      syncHitory code
+      action code
+      until_ prompt action 
+  where
+    syncHitory code = do
       file <- getHistoryFilePath
       appendFile file (code ++ "\n")
       addHistory code
-      action code
-      until_ prompt action 
+
 
 processCmd cmd = case cmd of
   'c':'d':' ':dir -> setCurrentDirectory dir
