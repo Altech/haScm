@@ -21,7 +21,7 @@ data LispVal = Number Integer
              | Character Char
              | String String
              | Symbol String
-             | List [LispVal] -- for performance
+             | List [LispVal]
              | DottedList [LispVal] LispVal
              | Port Handle
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal) 

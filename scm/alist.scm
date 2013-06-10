@@ -1,4 +1,3 @@
-1
 (define alist-module
   (module
    
@@ -25,8 +24,6 @@
 
    (define-macro (alist-set! alist m-key m-value)
      `(set! ,alist (cons (cons ,m-key ,m-value) (alist-drop ,m-key ,alist))))
-
-   (define alist '((a . 2) (b . 4)))
 
    (define (alist-merge a1 a2)
      (let ((keys (alist-keys a1)))

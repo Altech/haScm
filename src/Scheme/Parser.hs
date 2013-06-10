@@ -117,4 +117,3 @@ spaces' = comment <|> spaces''
 -- For debug
 parse :: Show a => Parser a -> String -> Result a
 parse parser str = parseString parser (Lines 0 0 0 0) str
-

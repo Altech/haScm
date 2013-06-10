@@ -334,7 +334,7 @@
 "ok"
 
 ;; (make-instance 'circle `(radius . 2) `(center (0 . 0)))
-
+	
 ;; (defclass circle () ((radius (accessor . circle-radius)) (center (accessor . circle-center))))
 
 ;; (defmethod area ((c circle))
