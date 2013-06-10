@@ -86,19 +86,25 @@ specialFormsSymbols = map fst specialForms
 isSpecialForm :: [LispVal] -> Bool
 isSpecialForm form = case form of Symbol sym:_ -> sym `elem` specialFormsSymbols; _ -> False
 
+badS b = throwError $ BadSpecialFrom "Unrecognized form" (List b)
+
 evalSpecialForm' env (Symbol sym : params) = case lookup sym specialForms of Just f -> f env params
 
 define env [Symbol sym, Symbol sym'] = bindSymbols env sym sym'
 define env [Symbol sym,         val] = eval env val >>= defineVar env sym
 define env (List       (Symbol var : params)         : body) = makeNormalFunc env params body >>= defineVar env var
 define env (DottedList (Symbol var : params) varargs : body) = makeVarargsFunc varargs env params body >>= defineVar env var
+define _ b = badS b
 
 defineMacro env (List       (Symbol sym:params)         : body) = makeNormalMacro  params body env >>= defineVar env sym
 defineMacro env (DottedList (Symbol sym:params) varargs : body) = makeVarargsMacro varargs params body env >>= defineVar env sym
+defineMacro _ b = badS b
 
 set env [Symbol sym, val] = eval env val >>= setVar env sym
+set _ b = badS b
 
 quote ___ [form] = return form
+quote _ b = badS b
 
 quasiquote env [form] = unquote form 1
   where -- [TODO] support dotted list
@@ -114,9 +120,11 @@ quasiquote env [form] = unquote form 1
       List [Symbol "unquote-splicing", form'] -> (++) <$> destructList (eval env form') <*> unquoteSplicing tl 1 
       _                                       -> (:)  <$> pure hd                       <*> unquoteSplicing tl 1
     destructList action = (\val -> case val of List ls -> ls) <$> action
+quasiquote _ b = badS b
     
 lambda env (List params : body)               = makeNormalFunc          env params body
 lambda env (DottedList params varargs : body) = makeVarargsFunc varargs env params body
+lambda _ b = badS b
 
 begin env stmts = mapM (eval env) stmts >>= return . last -- [TODO] case : length list = 0
 
@@ -125,6 +133,7 @@ if' env [pred, conseq, alt] = do
   case maybeBool of
     Bool b -> eval env (if b then conseq else alt)
     notBool -> throwError $ TypeMismatch "boolean" notBool
+if' _ b = badS b
 
 eq env [v1, v2] = eq' env v1 v2
   where
@@ -138,6 +147,7 @@ eq env [v1, v2] = eq' env v1 v2
       (Symbol s, v) -> eval env (Symbol s) >>= eq' env v
       (v, Symbol s) -> eval env (Symbol s) >>= eq' env v
       (v1, v2) -> eval env (List [Symbol "equal?", v1, v2])
+eq _ b = badS b
 
 eqv = eq
 
@@ -153,23 +163,28 @@ builtInFunctions = [("eval",          eval'),
                     ("symbol-bound?", symbolBound)]
 
 eval' env [form] = eval env form
+eval' ___ v = throwError $ NumArgs 1 v
 
 apply' ___ [func, List args] = apply func args
 apply' ___ (func:args) = apply func args
+apply' ___ v = throwError $ NumArgs 2 v
 
 defineAll env [List val] = mapM def val >> return (Bool True)
   where 
     def (DottedList [sym] val) = define env [sym, List [Symbol "quote", val]]
     def (List (sym:vals)) = define env [sym, List [Symbol "quote", List vals]]
+defineAll _ [v] = throwError $ TypeMismatch "list" v
+defineAll _  v  = throwError $ NumArgs 1 v
 
-macroExpand1 env [form] = macroExpand env form
-macroExpand env form = do
+macroExpand1 env [form] = macroExpand1Iter env form
+macroExpand1 _ v = throwError $ NumArgs 1 v
+macroExpand1Iter env form = do
   case form of 
     List (sym:args) -> do
       maybeMacro <- getMacro env sym
       case maybeMacro of
         Just macro -> expand macro args
-        Nothing -> List <$> mapM (macroExpand env) (sym:args)
+        Nothing -> List <$> mapM (macroExpand1Iter env) (sym:args)
     _ -> return form
   where
     getMacro env val = case val of
@@ -182,14 +197,21 @@ macroExpand env form = do
     isMacro v = case v of Macro _ _ _ _ -> Just v; _ -> Nothing
 
 bindings env [] = liftIO $ showBindings env >>= putStrLn >> return (String "")
+bindings _ v = throwError $ NumArgs 0 v
 
 require env [Symbol name] = eval env (Symbol "path") >>= searchPath name >>= (\path -> load env [String path])
+require _ [v] = throwError $ TypeMismatch "symbol" v
+require _  v  = throwError $ NumArgs 1 v
 
 load env [String filename] = ifExist filename >>= loadFile >>= liftM last . mapM (eval env)
   where loadFile filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
         ifExist  filename = liftIO (doesFileExist filename) >>= (\b -> if b then return filename else throwError $ Default ("The file does not exist: " ++ filename))
+load _ [v] = throwError $ TypeMismatch "string" v
+load _  v = throwError  $ NumArgs 1 v
 
 symbolBound env [Symbol sym] = liftIO $ Bool <$> isBound env sym
+symbolBound _ [v] = throwError $ TypeMismatch "string" v
+symbolBound _  v = throwError  $ NumArgs 1 v
 
 --- built-in variables
 builtInVariables :: [(String, LispVal)]

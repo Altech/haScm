@@ -89,7 +89,7 @@ spec = do
                  "id"]
           val `shouldBe` expr "1"
         it "define a function" $ do
-          val <- runSample $ nullEnv' >>= evalExprs [
+          val <- runSample $ defaultEnv' >>= evalExprs [
                  "(define (f x) x)",
                  "(f 1)"]
           val `shouldBe` expr "1"
