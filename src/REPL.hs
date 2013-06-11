@@ -24,7 +24,10 @@ runRepl = readHistory >> defaultEnv >>= setCompleteFunc >>= defModuleSystem >>= 
     readPrompt prompt = readline prompt
 
 runOne :: [String] -> IO ()
-runOne args = undefined
+runOne args = do
+  env <- defModuleSystem =<< defaultEnv
+  mapM (readFile) args >>= mapM (evalString env) 
+  return ()
 
 until_ prompt action = do 
   result <- prompt
