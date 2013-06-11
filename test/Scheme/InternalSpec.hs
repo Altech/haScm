@@ -6,6 +6,7 @@ import Control.Arrow ((>>>))
 import Control.Monad.Error (runErrorT, liftIO)
 import Data.IORef
 import Scheme.Internal
+import Scheme.Internal.Environment
 
 main :: IO ()
 main = hspec spec

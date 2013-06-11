@@ -2,7 +2,8 @@
 module Scheme.Evaluator.Utils where
 
 import Scheme.Internal
-import Control.Applicative
+import Scheme.Internal.Environment (addFrame)
+import Control.Applicative ((<$>))
 import System.Directory (getDirectoryContents, doesFileExist, doesDirectoryExist)
 import System.FilePath.Posix (joinPath, dropExtension)
 
@@ -15,6 +16,8 @@ extractValue (Right val) = val
 
 trapError :: IOThrowsError String -> IOThrowsError String
 trapError action = catchError action (return . show)
+
+checkFileExist filename = liftIO (doesFileExist filename) >>= (\b -> if b then return filename else throwError $ Default ("The file does not exist: " ++ filename))
 
 searchPath :: String -> LispVal -> IOThrowsError String
 searchPath name (List ls) = searchPath' name ls

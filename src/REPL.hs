@@ -1,9 +1,8 @@
 module Main where
 
 import Scheme.Evaluator
-import Scheme.Internal (liftThrows, readFrames)
+import Scheme.Internal.Environment (readFrames)
 
-import Scheme.Parser (readExpr)
 import System.Console.Readline (readline, addHistory, setCompletionEntryFunction)
 import System.Directory (getHomeDirectory, doesFileExist, setCurrentDirectory)
 import System.Environment (getArgs)
@@ -13,7 +12,40 @@ import System.Process (system)
 import Control.Arrow ((>>>))
 import Control.Applicative ((<$>))
 
--- REPL
+main :: IO ()
+main = do 
+  args <- getArgs
+  if null args then runRepl else runOne $ args
+
+runRepl :: IO ()
+runRepl = readHistory >> defaultEnv >>= setCompleteFunc >>= defModuleSystem >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
+  where 
+    evalAndPrint env expr = evalString env expr >>= putStrLn
+    readPrompt prompt = readline prompt
+
+runOne :: [String] -> IO ()
+runOne args = undefined
+
+until_ prompt action = do 
+  result <- prompt
+  case result of 
+    Nothing -> putChar '\n' >> return ()
+    Just ('.':cmd) -> processCmd cmd >> syncHitory ('.':cmd) >> until_ prompt action 
+    Just "exit" -> return ()
+    Just "quit" -> return ()
+    Just code -> do 
+      syncHitory code
+      action code
+      until_ prompt action 
+  where
+    syncHitory code = do
+      file <- getHistoryFilePath
+      appendFile file (code ++ "\n")
+      addHistory code
+    processCmd cmd = case cmd of
+      'c':'d':' ':dir -> setCurrentDirectory dir
+      _ -> system cmd >> return ()
+
 getHistoryFilePath :: IO String
 getHistoryFilePath = (++ "/.hascm_history") <$> getHomeDirectory
 
@@ -56,46 +88,3 @@ defModuleSystem :: Env -> IO Env
 defModuleSystem env = mapM (evalString env) [code1, code2] >> return env
   where code1 = "(define-macro (module . definitions) `((lambda () (define (mapmap f ls) (if (null? ls) '() (cons (f (car ls)) (mapmap f (cdr ls))))) (define (revrev ls) (define (revrevi ls a) (if (null? ls) a (revrevi (cdr ls) (cons (car ls) a)))) (revrevi ls '())) (define module-exported-names '()) (define-macro (export . names) `(begin ,@(mapmap (lambda (name) `(set! module-exported-names (cons (cons ',name ,name) module-exported-names))) names))) ,@definitions (revrev module-exported-names))))"
         code2 = "(define-macro (import module) `(define-all ,module))"
-        
-readPrompt :: String -> IO (Maybe String)
-readPrompt prompt = readline prompt
-
-evalString :: Env -> String -> IO String
-evalString env expr = runIOThrows $ liftThrows (readExpr expr) >>= eval env >>= return . show
-
-evalAndPrint :: Env -> String -> IO ()
-evalAndPrint env expr = evalString env expr >>= putStrLn
-
-until_ prompt action = do 
-  result <- prompt
-  case result of 
-    Nothing -> putChar '\n' >> return ()
-    Just ('.':cmd) -> processCmd cmd >> syncHitory ('.':cmd) >> until_ prompt action 
-    Just "exit" -> return ()
-    Just "quit" -> return ()
-    Just code -> do 
-      syncHitory code
-      action code
-      until_ prompt action 
-  where
-    syncHitory code = do
-      file <- getHistoryFilePath
-      appendFile file (code ++ "\n")
-      addHistory code
-
-
-processCmd cmd = case cmd of
-  'c':'d':' ':dir -> setCurrentDirectory dir
-  _ -> system cmd >> return ()
-
-runOne :: [String] -> IO ()
-runOne args = undefined
-
-runRepl :: IO ()
-runRepl = readHistory >> defaultEnv >>= setCompleteFunc >>= defModuleSystem >>= loadRc >>= (evalAndPrint >>> until_ (readPrompt "λ> "))
-
--- main
-main :: IO ()
-main = do 
-  args <- getArgs
-  if null args then runRepl else runOne $ args

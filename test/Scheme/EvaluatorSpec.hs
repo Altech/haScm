@@ -1,6 +1,7 @@
 module Scheme.EvaluatorSpec where
 
 import Scheme.Internal
+import Scheme.Internal.Environment (nullEnv)
 import Scheme.Evaluator
 import Scheme.Parser (parse,parseDatum)
 import Text.Trifecta.Result (Result (..))

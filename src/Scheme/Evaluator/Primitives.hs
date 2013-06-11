@@ -40,7 +40,6 @@ primitives = [
   ("remainder", numericBinop rem),
   -- Bool
   ("not", \vals -> checkNumArg1M vals >>= unpackBool >>= (not >>> Bool >>> return)),
-  -- ("not", checkNumArg1M $ \val -> case val of Bool b -> return $ Bool (not b); _ -> throwError $ TypeMismatch "bool" val),
   -- String
   ("string-append", strBinop (++)),
   ("string=?", strBoolBinop (==)),

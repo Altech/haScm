@@ -1,29 +1,21 @@
 module Scheme.Evaluator (
     eval, apply, 
+    evalString,
     Env, defaultEnv,
     runIOThrows,
     specialFormsSymbols
   ) where
 
 import Scheme.Internal
-import Scheme.Parser (readExprList)
+import Scheme.Internal.Environment
+import Scheme.Parser (readExpr, readExprList)
 import Scheme.Evaluator.Primitives
 import Scheme.Evaluator.IOPrimitives
 import Scheme.Evaluator.Utils
 
-import Control.Monad (liftM)
-import Control.Applicative
+import Control.Applicative ((<*>),(<$>),pure)
 
-import System.Directory (doesFileExist)
-
-
-defaultEnv :: IO Env
-defaultEnv = nullEnv >>= bindVars defaultBindings
-
-defaultBindings :: [(String, LispVal)]
-defaultBindings = map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) ioPrimitives ++ map (makeFunc BuiltInFunc) builtInFunctions ++ builtInVariables
-  where makeFunc constructor (sym,func) = (sym,constructor func)
-
+--- Evaluation
 eval :: Env -> LispVal -> IOThrowsError LispVal
 eval _ val@(Number _)    = return val
 eval _ val@(Bool _)      = return val
@@ -33,8 +25,6 @@ eval env   (Symbol sym)  = getVar env sym
 eval env   (List form) | isSpecialForm form = evalSpecialForm' env form
 eval env   (List (hd:tl)) = do
   val <- eval env hd
-  Bool isDebug <- eval env (Symbol "is-debug")
-  if isDebug then liftIO $ putStrLn (show hd) else return ()
   case val of
     macroVal@(Macro _ _ _ _) -> do
       expand macroVal tl >>= eval env
@@ -43,24 +33,20 @@ eval env   (List (hd:tl)) = do
       case funcVal of
         BuiltInFunc f -> f env argVals
         _ -> apply funcVal argVals
-eval ___ badForm = throwError $ BadSpecialFrom "Unrecognized form" badForm
+eval ___ badForm = throwError $ TypeMismatch "number|bool|character|string|symbol|list" badForm
 
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
 apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args = 
-  if num params /= num args && varargs == Nothing
-  then throwError $ NumArgs (num params) args
+  if length params /= length args && varargs == Nothing
+  then throwError $ NumArgs (toInteger (length params)) args
   else do
-    tempEnv <- liftIO $ addFrame closure
-    (liftIO $ bindVars (zip params args) tempEnv) >>= bindVarArgs varargs >>= evalBody
+    env <- liftIO $ addFrame closure >>= bindVars (zip params args) >>= bindVarArgs varargs
+    mapM (eval env) (init body) >> eval env (last body) -- This splitation is tail call optimization.
   where 
     remainingArgs = drop (length params) args
-    num = toInteger . length
-    evalBody env = mapM (eval env) (init body) >> (eval env (last body))
-    bindVarArgs arg env = case arg of
-      Just argName -> liftIO $ bindVars [(argName, List remainingArgs)] env
-      Nothing -> return env
+    bindVarArgs arg env = maybe (pure env) (\arg -> bindVars [(arg, List remainingArgs)] env) arg
 apply notFunction _ = throwError $ TypeMismatch "function" notFunction
 
 expand :: LispVal -> [LispVal] -> IOThrowsError LispVal
@@ -68,7 +54,21 @@ expand (Macro params varargs body closure) args = do
   tempEnv <- liftIO $ addFrame closure
   apply (Func params varargs body tempEnv) args 
 
---- special forms
+evalString :: Env -> String -> IO String
+evalString env expr = runIOThrows $ liftThrows (readExpr expr) >>= eval env >>= return . show
+
+--- Default environemnt
+defaultEnv :: IO Env
+defaultEnv = nullEnv >>= bindVars defaultBindings
+
+defaultBindings :: [(String, LispVal)]
+defaultBindings = map (makeFunc PrimitiveFunc) primitives ++ 
+                  map (makeFunc IOFunc) ioPrimitives ++ 
+                  map (makeFunc BuiltInFunc) builtInFunctions ++ 
+                  builtInVariables
+  where makeFunc constructor (sym,func) = (sym,constructor func)
+
+--- Special forms
 specialForms :: [(String, Env -> [LispVal] -> IOThrowsError LispVal)]
 specialForms = [("define",       define),
                 ("define-macro", defineMacro),
@@ -86,7 +86,7 @@ specialFormsSymbols = map fst specialForms
 isSpecialForm :: [LispVal] -> Bool
 isSpecialForm form = case form of Symbol sym:_ -> sym `elem` specialFormsSymbols; _ -> False
 
-badS b = throwError $ BadSpecialFrom "Unrecognized form" (List b)
+badS b = throwError $ BadSpecialFrom "Unrecognized special form" (List b)
 
 evalSpecialForm' env (Symbol sym : params) = case lookup sym specialForms of Just f -> f env params
 
@@ -126,7 +126,9 @@ lambda env (List params : body)               = makeNormalFunc          env para
 lambda env (DottedList params varargs : body) = makeVarargsFunc varargs env params body
 lambda _ b = badS b
 
-begin env stmts = mapM (eval env) stmts >>= return . last -- [TODO] case : length list = 0
+begin env exprs 
+  | length exprs > 0 = mapM (eval env) exprs >>= return . last
+  | otherwise = badS exprs
 
 if' env [pred, conseq, alt] = do
   maybeBool <- eval env pred
@@ -151,7 +153,7 @@ eq _ b = badS b
 
 eqv = eq
 
---- built-in functions
+--- Built-in functions
 builtInFunctions :: [(String, Env -> [LispVal] -> IOThrowsError LispVal)]
 builtInFunctions = [("eval",          eval'),
                     ("apply",         apply'),
@@ -172,7 +174,7 @@ apply' ___ v = throwError $ NumArgs 2 v
 defineAll env [List val] = mapM def val >> return (Bool True)
   where 
     def (DottedList [sym] val) = define env [sym, List [Symbol "quote", val]]
-    def (List (sym:vals)) = define env [sym, List [Symbol "quote", List vals]]
+    def (List (sym:vals))      = define env [sym, List [Symbol "quote", List vals]]
 defineAll _ [v] = throwError $ TypeMismatch "list" v
 defineAll _  v  = throwError $ NumArgs 1 v
 
@@ -203,9 +205,10 @@ require env [Symbol name] = eval env (Symbol "path") >>= searchPath name >>= (\p
 require _ [v] = throwError $ TypeMismatch "symbol" v
 require _  v  = throwError $ NumArgs 1 v
 
-load env [String filename] = ifExist filename >>= loadFile >>= liftM last . mapM (eval env)
-  where loadFile filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
-        ifExist  filename = liftIO (doesFileExist filename) >>= (\b -> if b then return filename else throwError $ Default ("The file does not exist: " ++ filename))
+load env [String filename] = checkFileExist filename >>= loadFile >>= mapM (eval env) >>= return . last' (Bool False)
+  where loadFile filename = liftIO (readFile filename) >>= liftThrows . readExprList
+        last' e l = if null l then e else last l
+        
 load _ [v] = throwError $ TypeMismatch "string" v
 load _  v = throwError  $ NumArgs 1 v
 
@@ -213,6 +216,6 @@ symbolBound env [Symbol sym] = liftIO $ Bool <$> isBound env sym
 symbolBound _ [v] = throwError $ TypeMismatch "string" v
 symbolBound _  v = throwError  $ NumArgs 1 v
 
---- built-in variables
+--- Built-in variables
 builtInVariables :: [(String, LispVal)]
-builtInVariables = [("path", List [String "/usr/lib/hascm/scm"]),("is-debug", Bool False)]
+builtInVariables = [("path", List [String "/usr/lib/hascm/scm"])]
