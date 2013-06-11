@@ -37,4 +37,4 @@
 	 #f))
    
    (export
-    alist-keys alist-values alist-exist? alist-drop alist-set! alist-merge)))
+    alist-keys alist-values alist-exist? alist-drop alist-set! alist-merge assoc-default)))

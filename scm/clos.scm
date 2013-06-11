@@ -1,6 +1,13 @@
 (display "load CLOS library...")
 (define clos-module
   (module
+   ;; depends core and lib
+   ;; (require 'core)
+   ;; (import  core-module)
+   ;; (require 'lib)
+   ;; (import  list-module)
+   ;; (import  num-module)
+   ;; (import  io-module)
 
    (require 'alist)
    (import alist-module)
@@ -227,6 +234,7 @@
    (define (get-ancestors class-name)
      (isort (remove-dup (get-all class-name) (undefined))
 	    (lambda (cn1 cn2) (member? cn2 (get-all cn1)))))
+   (write "a")
 
    (defclass string () ())
    (defclass number () ())
