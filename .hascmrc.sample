@@ -1,0 +1,9 @@
+(set! path (cons "/Users/Altech/dev/scheme/haskell/scm" path))
+
+(require 'core)
+(import  core-module)
+
+(require 'lib)
+(import  list-module)
+(import  num-module)
+(import  io-module)

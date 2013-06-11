@@ -63,7 +63,6 @@ loadRc env = do
       let cmd = "(load \"" ++ filename ++ "\")" 
       putStrLn $ "λ> " ++ cmd
       evalString env cmd
-      putStrLn $ "OK!"
       return env
     else return env
 
