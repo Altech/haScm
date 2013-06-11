@@ -229,3 +229,13 @@ spec = do
                  "(define-macro (m1 a b) `(+ ,a ,b))",
                  "(macroexpand-1 '(+ (m1 1 2) 5))"]
           val `shouldBe` expr "(+ (+ 1 2) 5)"
+      describe "symbol-bound?" $ do
+        it "return false when the symbol is not defined" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(symbol-bound? 'a)"]
+          val `shouldBe` expr "#f"
+        it "return true when the symbol is defined" $ do
+          val <- runSample $ defaultEnv' >>= evalExprs [
+                 "(define a 1)",
+                 "(symbol-bound? 'a)"]
+          val `shouldBe` expr "#t"

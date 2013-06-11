@@ -1,5 +1,6 @@
 module Scheme.Parser  (
-    readExpr, readExprList
+    readExpr, readExprList,
+    parse, parseDatum -- used in test
   ) where
 
 import Scheme.Internal (LispVal(..), ThrowsError, throwParserError)
