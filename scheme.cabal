@@ -17,7 +17,7 @@ cabal-version:       >=1.8
 
 executable scheme
   hs-source-dirs:     src, test
-  main-is:            REPL.hs
+  main-is:            haScm.hs
   other-modules:      Scheme.Parser
                       Scheme.Internal
                       Scheme.Evaluator
