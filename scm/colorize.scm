@@ -4,6 +4,9 @@
   (module
    (require 'core)
    (import core-module)
+   
+   (require 'alist)
+   (import alist-module)
 
    (define colorize-colors '((black         . 0)
 		    (red           . 1)

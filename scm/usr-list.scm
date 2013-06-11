@@ -72,10 +72,15 @@
 		 (isort (cdr lst) f)
 		 f)))
 
+   (define-macro (add-to-list lst value)
+     `(set! ,lst (cons ,value ,lst)))
+
+
    (export
      filter zip
      replicate
      remove-dup for-all? member?
-     isort msort split merge)))
+     isort msort split merge
+     add-to-list)))
 
 

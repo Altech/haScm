@@ -31,5 +31,10 @@
 
    (define alist-remove-duplicated-keys 1)
    
+   (define (assoc-default key alist)
+     (if (pair? (assoc key alist))
+	 (cdr (assoc key alist))
+	 #f))
+   
    (export
     alist-keys alist-values alist-exist? alist-drop alist-set! alist-merge)))
