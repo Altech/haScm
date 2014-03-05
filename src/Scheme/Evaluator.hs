@@ -55,7 +55,7 @@ expand (Macro params varargs body closure) args = do
   apply (Func params varargs body tempEnv) args 
 
 evalString :: Env -> String -> IO String
-evalString env exprs = runIOThrows $ liftThrows (readExprList exprs) >>= mapM (eval env) >>= return . show . last
+evalString env exprs = runIOThrows $ liftThrows (readExprList exprs) >>= mapM (eval env) >>= return . show . (\vals -> if null vals then Undefined else last vals)
 
 --- Default environemnt
 defaultEnv :: IO Env
