@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                scheme
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            An interpreter of Scheme written in Haskell.
 description:         This is an interpreter of Scheme written in Haskell.
 homepage:            http://altech.me
@@ -22,19 +22,19 @@ executable scheme
                       Scheme.Internal
                       Scheme.Evaluator
                       Scheme.Evaluator.Primitives
-  build-depends:      base ==4.5.*,
+  build-depends:      base >=4.5,
                       mtl,
-                      comonad ==3.0.*, 
-                      hspec ==1.5.*,
-                      HUnit ==1.2.*,
-                      QuickCheck ==2.5.*,
+                      comonad >=3.0, 
+                      hspec >=1.5,
+                      HUnit >=1.2,
+                      QuickCheck >=2.5,
                       directory,
                       filepath,
                       process,
-                      readline ==1.0.*,
-                      trifecta ==1.1,
+                      readline >=1.0,
+                      trifecta >=1.1,
                       ansi-wl-pprint
 
 Source-Repository head
   Type:                 git
-  Location:             git://github.com/Altech/Scheme-Haskell.git
+  Location:             git://github.com/Altech/haScm.git
